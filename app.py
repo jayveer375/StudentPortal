@@ -42,12 +42,11 @@ app.config['TEMPLATES_AUTO_RELOAD'] = True   # Always reload templates
 ADMIN_EMAIL = "Admin@gmail.com"
 ADMIN_PASSWORD = "admin@123"
 
-# Authentication enforcement decorator
-def login_required(f):
+# Authentication enforcement decorators
+def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not session.get('logged_in'):
-            # If AJAX or API call, return JSON 401
             if (
                 request.is_json
                 or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
@@ -59,12 +58,54 @@ def login_required(f):
                 or request.path.startswith('/close_')
             ):
                 return jsonify({
-                    'error': 'Authentication required. Please login as Admin first.',
+                    'error': 'Authentication required. Please login as Administrator.',
                     'redirect': url_for('login')
                 }), 401
             return redirect(url_for('login', next=request.url))
+            
+        role = session.get('role')
+        if role == 'student':
+            if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({
+                    'error': 'Access denied. Administrator privileges required.',
+                    'redirect': url_for('student_portal')
+                }), 403
+            return redirect(url_for('student_portal'))
+        elif role != 'admin':
+            session.clear()
+            return redirect(url_for('login'))
+            
         return f(*args, **kwargs)
     return decorated_function
+
+def student_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('logged_in'):
+            if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({
+                    'error': 'Authentication required. Please login first.',
+                    'redirect': url_for('login')
+                }), 401
+            return redirect(url_for('login', next=request.url))
+            
+        role = session.get('role')
+        if role == 'admin':
+            if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({
+                    'error': 'Access denied. Student portal only.',
+                    'redirect': url_for('index')
+                }), 403
+            return redirect(url_for('index'))
+        elif role != 'student':
+            session.clear()
+            return redirect(url_for('login'))
+            
+        return f(*args, **kwargs)
+    return decorated_function
+
+# Maintain login_required as alias to admin_required for all existing admin routes
+login_required = admin_required
 
 # Disable browser caching for all responses
 @app.after_request
@@ -819,6 +860,8 @@ def send_emails_background(students, session_id):
 def login():
     if request.method == 'GET':
         if session.get('logged_in'):
+            if session.get('role') == 'student':
+                return redirect(url_for('student_portal'))
             return redirect(url_for('index'))
         return render_template('login.html')
 
@@ -827,8 +870,10 @@ def login():
     username = (data.get('username') or request.form.get('username') or '').strip()
     password = (data.get('password') or request.form.get('password') or '').strip()
 
+    # 1. Check Administrator Credentials
     if username.lower() == ADMIN_EMAIL.lower() and password == ADMIN_PASSWORD:
         session['logged_in'] = True
+        session['role'] = 'admin'
         session['user_email'] = ADMIN_EMAIL
         session.permanent = True
 
@@ -836,12 +881,48 @@ def login():
         if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'success': True, 'redirect': next_url})
         return redirect(next_url)
-    else:
-        error_msg = 'Invalid credentials. Please verify your Admin email and password.'
-        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'success': False, 'error': error_msg}), 401
-        flash(error_msg, 'error')
-        return render_template('login.html', error=error_msg, username=username)
+
+    # 2. Check Student Credentials from PostgreSQL
+    student = None
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute("SELECT * FROM students WHERE LOWER(email) = LOWER(%s)", (username,))
+        student = cursor.fetchone()
+        cursor.close()
+    except Exception as e:
+        print(f"Database authentication error: {e}")
+    finally:
+        if conn:
+            conn.close()
+
+    if student:
+        # Determine valid password:
+        # If student has updated password in database, match against it.
+        # Otherwise, initial default password is the student's enrollment number.
+        db_pwd = student.get('password')
+        expected_pwd = db_pwd if (db_pwd and str(db_pwd).strip()) else str(student['enrollment_number']).strip()
+
+        if password == expected_pwd:
+            session['logged_in'] = True
+            session['role'] = 'student'
+            session['student_id'] = student['id']
+            session['student_email'] = student['email']
+            session['student_name'] = student['name']
+            session['enrollment_number'] = student['enrollment_number']
+            session.permanent = True
+
+            next_url = request.args.get('next') or url_for('student_portal')
+            if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': True, 'redirect': next_url})
+            return redirect(next_url)
+
+    error_msg = 'Invalid credentials. Please verify your Email and Password.'
+    if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'success': False, 'error': error_msg}), 401
+    flash(error_msg, 'error')
+    return render_template('login.html', error=error_msg, username=username)
 
 @app.route('/logout', methods=['GET', 'POST'])
 def logout():
@@ -849,8 +930,16 @@ def logout():
     return redirect(url_for('login'))
 
 @app.route('/')
-@login_required
 def index():
+    # If not logged in, redirect to login page
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    
+    # If logged in as student, redirect to student portal
+    if session.get('role') == 'student':
+        return redirect(url_for('student_portal'))
+    
+    # Admin user - show main dashboard
     return render_template('index.html', admin_user=session.get('user_email', ADMIN_EMAIL))
 
 @app.route('/upload', methods=['POST'])
@@ -884,9 +973,54 @@ def upload_file():
         upload_token = str(uuid.uuid4())
         app.config.setdefault('upload_store', {})[upload_token] = matched_students
 
+        # Persist arrangement batch and allocations into PostgreSQL with is_allocated = FALSE
+        # The arrangement will only be visible to students after admin explicitly clicks "Allocate"
+        arrangement_id = None
+        try:
+            conn = get_db_connection()
+            cur = conn.cursor()
+            
+            # Create seating_arrangements batch record
+            cur.execute('''
+                INSERT INTO seating_arrangements (filename, title, total_students, is_allocated, uploaded_at)
+                VALUES (%s, %s, %s, FALSE, NOW())
+                RETURNING id;
+            ''', (file.filename, file.filename, len(matched_students)))
+            arrangement_id = cur.fetchone()[0]
+
+            for s in matched_students:
+                cur.execute('''
+                    INSERT INTO seating_allocations (
+                        arrangement_id, enrollment_number, student_name, email, semester, 
+                        branch, college_name, block, room, subject, date, time, is_allocated, updated_at
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, FALSE, NOW());
+                ''', (
+                    arrangement_id,
+                    s['enrollment_number'],
+                    s['name'],
+                    s['email'],
+                    str(s['semester']),
+                    s['branch'],
+                    s['college_name'],
+                    s['block'],
+                    s['room'],
+                    s['subject'],
+                    s['date'],
+                    s['time']
+                ))
+            conn.commit()
+            cur.close()
+            conn.close()
+        except Exception as persist_err:
+            print(f"Error persisting seating arrangement to database: {persist_err}")
+
         return jsonify({
             'success': True,
             'upload_token': upload_token,
+            'arrangement_id': arrangement_id,
+            'filename': file.filename,
+            'is_allocated': False,
             'matched_students': matched_students,
             'not_found_students': not_found_students,
             'total_extracted': len(seating_data),
@@ -1026,6 +1160,244 @@ def close_whatsapp():
         return jsonify({'success': True, 'message': 'WhatsApp browser closed'})
     except Exception as e:
         return jsonify({'error': f'Error closing WhatsApp browser: {str(e)}'}), 500
+
+# =========================================================
+# SEATING ARRANGEMENTS MANAGEMENT (ADMIN ONLY)
+# =========================================================
+@app.route('/api/arrangements', methods=['GET'])
+@admin_required
+def list_arrangements():
+    """Lists all uploaded seating arrangements with their allocation status."""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute('''
+            SELECT id, filename, title, total_students, is_allocated, 
+                   uploaded_at, allocated_at
+            FROM seating_arrangements
+            ORDER BY uploaded_at DESC;
+        ''')
+        rows = cur.fetchall()
+        arrangements = []
+        for r in rows:
+            arrangements.append({
+                'id': r['id'],
+                'filename': r['filename'],
+                'title': r['title'] or r['filename'],
+                'total_students': r['total_students'],
+                'is_allocated': bool(r['is_allocated']),
+                'uploaded_at': r['uploaded_at'].strftime('%d %b %Y, %I:%M %p') if r['uploaded_at'] else '',
+                'allocated_at': r['allocated_at'].strftime('%d %b %Y, %I:%M %p') if r['allocated_at'] else None
+            })
+        cur.close()
+        conn.close()
+        return jsonify({'success': True, 'arrangements': arrangements})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/arrangements/<int:arrangement_id>/allocate', methods=['POST'])
+@admin_required
+def allocate_arrangement(arrangement_id):
+    """Allocates an uploaded seating arrangement to students so they can view it."""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('SELECT id, filename, is_allocated FROM seating_arrangements WHERE id = %s;', (arrangement_id,))
+        row = cur.fetchone()
+        if not row:
+            cur.close()
+            conn.close()
+            return jsonify({'success': False, 'error': 'Seating arrangement not found.'}), 404
+
+        cur.execute('''
+            UPDATE seating_arrangements 
+            SET is_allocated = TRUE, allocated_at = NOW() 
+            WHERE id = %s;
+        ''', (arrangement_id,))
+        cur.execute('''
+            UPDATE seating_allocations 
+            SET is_allocated = TRUE 
+            WHERE arrangement_id = %s;
+        ''', (arrangement_id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({
+            'success': True,
+            'message': f'Seating arrangement "{row[1]}" allocated successfully! Students can now view their assigned seats.',
+            'arrangement_id': arrangement_id,
+            'is_allocated': True
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/arrangements/<int:arrangement_id>/delete', methods=['POST', 'DELETE'])
+@admin_required
+def delete_arrangement(arrangement_id):
+    """Deletes an uploaded seating arrangement and purges its seat allocations."""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('SELECT id, filename FROM seating_arrangements WHERE id = %s;', (arrangement_id,))
+        row = cur.fetchone()
+        if not row:
+            cur.close()
+            conn.close()
+            return jsonify({'success': False, 'error': 'Seating arrangement not found.'}), 404
+
+        filename = row[1]
+        cur.execute('DELETE FROM seating_arrangements WHERE id = %s;', (arrangement_id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({
+            'success': True,
+            'message': f'Seating arrangement "{filename}" and its allocations were deleted successfully.'
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# =========================================================
+# STUDENT PORTAL & PROFILE CONTROLLER
+# =========================================================
+@app.route('/student')
+@student_required
+def student_portal():
+    """Renders the dedicated student dashboard with Seat Allotment & Profile."""
+    student_id = session.get('student_id')
+    conn = None
+    student = None
+    allocations = []
+
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+
+        cur.execute("SELECT * FROM students WHERE id = %s", (student_id,))
+        student = cur.fetchone()
+
+        if student:
+            # Query all active allocated seat records for this student across all allocated arrangements
+            cur.execute("""
+                SELECT sa.*, arr.filename as arrangement_filename, arr.title as arrangement_title, arr.allocated_at
+                FROM seating_allocations sa
+                JOIN seating_arrangements arr ON sa.arrangement_id = arr.id
+                WHERE sa.enrollment_number = %s 
+                  AND sa.is_allocated = TRUE 
+                  AND arr.is_allocated = TRUE
+                ORDER BY sa.date ASC, sa.time ASC, sa.id ASC;
+            """, (student['enrollment_number'],))
+            allocations = cur.fetchall()
+
+        cur.close()
+    except Exception as e:
+        print(f"Error loading student portal: {e}")
+    finally:
+        if conn:
+            conn.close()
+
+    if not student:
+        session.clear()
+        return redirect(url_for('login'))
+
+    has_custom_password = bool(student.get('password') and str(student['password']).strip())
+
+    return render_template(
+        'student.html',
+        student=student,
+        allocations=allocations,
+        allocation=allocations[0] if allocations else None,
+        has_custom_password=has_custom_password
+    )
+
+@app.route('/student/update-name', methods=['POST'])
+@student_required
+def student_update_name():
+    """Allows student to update their displayed name in PostgreSQL."""
+    data = request.get_json(silent=True) or {}
+    new_name = (data.get('name') or request.form.get('name') or '').strip()
+
+    if not new_name or len(new_name) < 2:
+        return jsonify({'success': False, 'error': 'Please enter a valid student name (at least 2 characters).'}), 400
+
+    student_id = session.get('student_id')
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("UPDATE students SET name = %s WHERE id = %s", (new_name, student_id))
+
+        # Also keep seating_allocations name in sync if an allotment exists
+        enrollment = session.get('enrollment_number')
+        if enrollment:
+            cur.execute("UPDATE seating_allocations SET student_name = %s WHERE enrollment_number = %s", (new_name, enrollment))
+
+        conn.commit()
+        cur.close()
+
+        session['student_name'] = new_name
+        return jsonify({'success': True, 'message': 'Name updated successfully!', 'name': new_name})
+    except Exception as e:
+        print(f"Error updating student name: {e}")
+        return jsonify({'success': False, 'error': 'Database error while updating name.'}), 500
+    finally:
+        if conn:
+            conn.close()
+
+@app.route('/student/change-password', methods=['POST'])
+@student_required
+def student_change_password():
+    """Allows student to change their password, updating the password column in PostgreSQL."""
+    data = request.get_json(silent=True) or {}
+    current_password = (data.get('current_password') or request.form.get('current_password') or '').strip()
+    new_password = (data.get('new_password') or request.form.get('new_password') or '').strip()
+    confirm_password = (data.get('confirm_password') or request.form.get('confirm_password') or '').strip()
+
+    if not current_password:
+        return jsonify({'success': False, 'error': 'Please enter your current password.'}), 400
+    if not new_password or len(new_password) < 4:
+        return jsonify({'success': False, 'error': 'New password must be at least 4 characters long.'}), 400
+    if new_password != confirm_password:
+        return jsonify({'success': False, 'error': 'New password and confirmation do not match.'}), 400
+
+    student_id = session.get('student_id')
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT * FROM students WHERE id = %s", (student_id,))
+        student = cur.fetchone()
+
+        if not student:
+            cur.close()
+            return jsonify({'success': False, 'error': 'Student account not found.'}), 404
+
+        # Validate current password
+        db_pwd = student.get('password')
+        expected_current = db_pwd if (db_pwd and str(db_pwd).strip()) else str(student['enrollment_number']).strip()
+
+        if current_password != expected_current:
+            cur.close()
+            return jsonify({
+                'success': False,
+                'error': 'Current password is incorrect. (Note: Your default initial password is your 12-digit enrollment number).'
+            }), 400
+
+        # Update password in database
+        cur.execute("UPDATE students SET password = %s WHERE id = %s", (new_password, student_id))
+        conn.commit()
+        cur.close()
+
+        return jsonify({
+            'success': True,
+            'message': 'Password changed successfully! Please use your new password for all future logins.'
+        })
+    except Exception as e:
+        print(f"Error changing student password: {e}")
+        return jsonify({'success': False, 'error': 'Database error while changing password.'}), 500
+    finally:
+        if conn:
+            conn.close()
 
 if __name__ == '__main__':
     # Disable reloader to prevent background threads from being killed

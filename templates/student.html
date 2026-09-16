@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ExamDesk — Student Portal</title>
+    <meta name="description" content="ExamDesk Student Portal: View your exam seat allocation, update your profile, and manage your password.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="student-portal-body">
+    <div class="student-layout">
+        <!-- =========================================================
+             STUDENT TOPBAR NAVIGATION
+             ========================================================= -->
+        <header class="student-topbar">
+            <div class="student-brand">
+                <div class="student-brand-icon">
+                    <svg viewBox="0 0 24 24"><path d="M22 10v6M2 10l10-5 10 5-10 5-10-5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+                </div>
+                <div class="student-brand-text">
+                    <span class="brand-title">Exam<span class="highlight">Desk</span></span>
+                    <span class="brand-sub">Student Portal</span>
+                </div>
+            </div>
+
+            <div class="student-topbar-actions">
+                <!-- Student Account Pill -->
+                <div class="student-account-pill">
+                    <div class="student-avatar" id="topbarAvatar">
+                        {{ student.name[0] | upper if student.name else 'S' }}
+                    </div>
+                    <div class="student-account-meta">
+                        <span class="student-name-display" id="topbarStudentName">{{ student.name }}</span>
+                        <span class="student-enr-display">{{ student.enrollment_number }}</span>
+                    </div>
+                </div>
+
+                <!-- Sign Out Button -->
+                <a href="{{ url_for('logout') }}" class="btn-signout-danger" id="studentLogoutBtn" title="Sign out of Student Portal">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                        <polyline points="16 17 21 12 16 7"/>
+                        <line x1="21" y1="12" x2="9" y2="12"/>
+                    </svg>
+                    <span>Sign Out</span>
+                </a>
+            </div>
+        </header>
+
+        <!-- =========================================================
+             MAIN STUDENT CONTAINER
+             ========================================================= -->
+        <main class="student-main-content">
+            <!-- Navigation Tab Switcher -->
+            <div class="student-tab-bar">
+                <button type="button" class="student-tab-btn active" data-tab="tab-allotment" id="tabBtnAllotment">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                        <line x1="9" y1="7" x2="15" y2="7"/>
+                        <line x1="9" y1="11" x2="15" y2="11"/>
+                    </svg>
+                    <span>Seat Allotment</span>
+                </button>
+
+                <button type="button" class="student-tab-btn" data-tab="tab-profile" id="tabBtnProfile">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                        <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                    <span>Profile & Security</span>
+                </button>
+            </div>
+
+            <!-- Global Alert Banner -->
+            <div id="studentAlertBanner" class="student-alert-banner" style="display: none;">
+                <span class="alert-icon" id="alertIcon"></span>
+                <span class="alert-text" id="alertText"></span>
+            </div>
+
+            <!-- =========================================================
+                 VIEW 1: SEAT ALLOTMENT VIEW
+                 ========================================================= -->
+            <section id="tab-allotment" class="student-view-section active">
+                {% if allocations and allocations | length > 0 %}
+
+                {% if allocations | length > 1 %}
+                <!-- Multi-Allotment Notice Banner -->
+                <div class="multi-allotment-banner">
+                    <div class="multi-allotment-icon">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="7" width="20" height="14" rx="2"/>
+                            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+                        </svg>
+                    </div>
+                    <div class="multi-allotment-content">
+                        <strong>Multiple Class Allocations ({{ allocations | length }} Classes / Sessions Assigned)</strong>
+                        <p>You have multiple allocated classroom locations. Please review each class schedule, room number, and block assignment carefully below.</p>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="allocations-stack" style="display: flex; flex-direction: column; gap: 24px;">
+                    {% for alloc in allocations %}
+                    <!-- Allocated Hero Card -->
+                    <div class="student-card allotment-hero-card">
+                        <div class="allotment-header-row">
+                            <div class="allotment-title-group">
+                                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px;">
+                                    <span class="allotment-badge-confirmed">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                        Seating Confirmed
+                                    </span>
+                                    {% if allocations | length > 1 %}
+                                    <span class="allotment-badge-session">Class #{{ loop.index }}</span>
+                                    {% endif %}
+                                    {% if alloc.arrangement_filename %}
+                                    <span class="allotment-badge-file">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                        {{ alloc.arrangement_filename }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                <h1 class="allotment-hero-title">{{ alloc.subject or 'Exam Seating Arrangement' }}</h1>
+                                <p class="allotment-hero-subtitle">Government Polytechnic Ahmedabad &bull; GTU Examination</p>
+                            </div>
+                            <div class="exam-date-pill">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                <span>{{ alloc.date or 'Scheduled Exam' }}</span>
+                            </div>
+                        </div>
+
+                        <!-- Highlighted Room & Block Banners -->
+                        <div class="room-block-grid">
+                            <div class="room-highlight-box">
+                                <div class="highlight-label">Allocated Classroom</div>
+                                <div class="highlight-value">{{ alloc.room or 'Room TBA' }}</div>
+                                <div class="highlight-sub">Classroom / Hall Number</div>
+                            </div>
+
+                            <div class="room-highlight-box block-accent">
+                                <div class="highlight-label">Assigned Block</div>
+                                <div class="highlight-value">{{ alloc.block or 'Block TBA' }}</div>
+                                <div class="highlight-sub">Seating Block Division</div>
+                            </div>
+                        </div>
+
+                        <!-- Exam Detail Tiles -->
+                        <div class="allotment-details-grid">
+                            <div class="detail-tile">
+                                <span class="detail-label">Subject & Code</span>
+                                <span class="detail-value highlight-text">{{ alloc.subject or 'Subject TBA' }}</span>
+                            </div>
+
+                            <div class="detail-tile">
+                                <span class="detail-label">Exam Timing</span>
+                                <span class="detail-value mono-text">{{ alloc.time or '10:30 AM TO 1:00 PM' }}</span>
+                            </div>
+
+                            <div class="detail-tile">
+                                <span class="detail-label">Semester & Branch</span>
+                                <span class="detail-value">SEM {{ alloc.semester or student.semester }} &bull; {{ student.branch }}</span>
+                            </div>
+
+                            <div class="detail-tile">
+                                <span class="detail-label">Student Enrollment</span>
+                                <span class="detail-value mono-text">{{ student.enrollment_number }}</span>
+                            </div>
+                        </div>
+
+                        <!-- Advisory Instructions -->
+                        <div class="exam-advisory-box">
+                            <div class="advisory-icon">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                                </svg>
+                            </div>
+                            <div class="advisory-text">
+                                <strong>Candidate Instructions:</strong>
+                                <p>Please report to <strong>Room {{ alloc.room }} (Block {{ alloc.block }})</strong> at least 15 minutes before the exam commences. Carry your valid Student ID Card and Hall Ticket. Smartwatches, mobile phones, and non-prescribed notes are strictly prohibited.</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                {% else %}
+                <!-- Empty State: No Allocation Published Yet -->
+                <div class="student-card empty-allotment-card">
+                    <div class="empty-allotment-icon">
+                        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                    </div>
+                    <h2 class="empty-allotment-title">Seat Allocation Pending</h2>
+                    <p class="empty-allotment-desc">
+                        Your seating arrangement has not been published by the examination administration yet. Once official seating arrangements are allocated, your classroom numbers, blocks, and schedules will appear here automatically.
+                    </p>
+                    <div class="empty-allotment-badge">
+                        Registered as: <strong>{{ student.name }}</strong> ({{ student.enrollment_number }})
+                    </div>
+                </div>
+                {% endif %}
+            </section>
+
+            <!-- =========================================================
+                 VIEW 2: PROFILE & SECURITY VIEW
+                 ========================================================= -->
+            <section id="tab-profile" class="student-view-section">
+                <div class="student-profile-grid">
+                    <!-- Column 1: Profile Information Display -->
+                    <div class="student-card profile-details-card">
+                        <div class="card-header-clean">
+                            <div class="card-header-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                    <circle cx="12" cy="7" r="4"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <h2 class="card-clean-title">Student Profile</h2>
+                                <p class="card-clean-subtitle">Information registered in the university database</p>
+                            </div>
+                        </div>
+
+                        <div class="profile-info-list">
+                            <div class="profile-info-row">
+                                <span class="row-label">Full Name</span>
+                                <span class="row-value font-bold" id="profileNameDisplay">{{ student.name }}</span>
+                            </div>
+
+                            <div class="profile-info-row">
+                                <span class="row-label">Enrollment Number</span>
+                                <span class="row-value mono-text font-bold">{{ student.enrollment_number }}</span>
+                            </div>
+
+                            <div class="profile-info-row">
+                                <span class="row-label">Email Address</span>
+                                <span class="row-value">{{ student.email }}</span>
+                            </div>
+
+                            <div class="profile-info-row">
+                                <span class="row-label">Phone Number</span>
+                                <span class="row-value mono-text">{{ student.phone_number or 'Not provided' }}</span>
+                            </div>
+
+                            <div class="profile-info-row">
+                                <span class="row-label">Current Semester</span>
+                                <span class="row-value"><span class="badge-tag blue">SEM {{ student.semester }}</span></span>
+                            </div>
+
+                            <div class="profile-info-row">
+                                <span class="row-label">Engineering Branch</span>
+                                <span class="row-value">{{ student.branch }}</span>
+                            </div>
+
+                            <div class="profile-info-row">
+                                <span class="row-label">Institution</span>
+                                <span class="row-value">{{ student.college_name }}</span>
+                            </div>
+
+                            <div class="profile-info-row">
+                                <span class="row-label">Security Status</span>
+                                <span class="row-value">
+                                    {% if has_custom_password %}
+                                    <span class="badge-tag" style="background:#DCFCE7; color:#15803D;">Custom Password Set</span>
+                                    {% else %}
+                                    <span class="badge-tag" style="background:#FEF3C7; color:#B45309;">Initial Password Active</span>
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Column 2: Name Update & Password Change Forms -->
+                    <div class="student-forms-column">
+                        <!-- Card: Update Name -->
+                        <div class="student-card edit-name-card">
+                            <div class="card-header-clean">
+                                <div class="card-header-icon">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h2 class="card-clean-title">Update Your Name</h2>
+                                    <p class="card-clean-subtitle">Keep your official displayed name accurate</p>
+                                </div>
+                            </div>
+
+                            <form id="updateNameForm" class="student-action-form">
+                                <div class="form-group-student">
+                                    <label for="studentNameInput" class="form-label-student">Your Full Name</label>
+                                    <div class="input-wrapper-student">
+                                        <span class="input-icon-student">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                                            </svg>
+                                        </span>
+                                        <input type="text" id="studentNameInput" name="name" class="form-input-student" value="{{ student.name }}" required minlength="2">
+                                    </div>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary btn-student-submit" id="saveNameBtn">
+                                    <span class="btn-spinner"></span>
+                                    <span class="btn-text">Save Name Changes</span>
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Card: Change Password -->
+                        <div class="student-card change-password-card">
+                            <div class="card-header-clean">
+                                <div class="card-header-icon">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h2 class="card-clean-title">Change Password</h2>
+                                    <p class="card-clean-subtitle">
+                                        {% if has_custom_password %}
+                                        Enter current password to set a new one
+                                        {% else %}
+                                        Default password is your enrollment number ({{ student.enrollment_number }})
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <form id="changePasswordForm" class="student-action-form">
+                                <!-- Current Password -->
+                                <div class="form-group-student">
+                                    <label for="currentPasswordInput" class="form-label-student">Current Password</label>
+                                    <div class="input-wrapper-student">
+                                        <span class="input-icon-student">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                            </svg>
+                                        </span>
+                                        <input type="password" id="currentPasswordInput" name="current_password" class="form-input-student" placeholder="Enter current password" required>
+                                        <button type="button" class="pwd-toggle-btn" data-target="currentPasswordInput" aria-label="Toggle password visibility">
+                                            <svg class="eye-open" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                            <svg class="eye-closed" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- New Password -->
+                                <div class="form-group-student">
+                                    <label for="newPasswordInput" class="form-label-student">New Password</label>
+                                    <div class="input-wrapper-student">
+                                        <span class="input-icon-student">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                                            </svg>
+                                        </span>
+                                        <input type="password" id="newPasswordInput" name="new_password" class="form-input-student" placeholder="Minimum 4 characters" minlength="4" required>
+                                        <button type="button" class="pwd-toggle-btn" data-target="newPasswordInput" aria-label="Toggle password visibility">
+                                            <svg class="eye-open" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                            <svg class="eye-closed" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Confirm New Password -->
+                                <div class="form-group-student">
+                                    <label for="confirmPasswordInput" class="form-label-student">Confirm New Password</label>
+                                    <div class="input-wrapper-student">
+                                        <span class="input-icon-student">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"/>
+                                            </svg>
+                                        </span>
+                                        <input type="password" id="confirmPasswordInput" name="confirm_password" class="form-input-student" placeholder="Re-enter new password" minlength="4" required>
+                                        <button type="button" class="pwd-toggle-btn" data-target="confirmPasswordInput" aria-label="Toggle password visibility">
+                                            <svg class="eye-open" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                            <svg class="eye-closed" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <button type="submit" class="btn btn-crimson btn-student-submit" id="savePasswordBtn">
+                                    <span class="btn-spinner"></span>
+                                    <span class="btn-text">Update Password</span>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Interactive Client Script for Student Portal -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Tab switching logic
+            const tabBtns = document.querySelectorAll('.student-tab-btn');
+            const viewSections = document.querySelectorAll('.student-view-section');
+
+            function switchStudentTab(targetTabId) {
+                tabBtns.forEach(btn => {
+                    btn.classList.toggle('active', btn.getAttribute('data-tab') === targetTabId);
+                });
+                viewSections.forEach(sec => {
+                    sec.classList.toggle('active', sec.id === targetTabId);
+                });
+                history.replaceState(null, null, `#${targetTabId.replace('tab-', '')}`);
+            }
+
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const targetTab = btn.getAttribute('data-tab');
+                    switchStudentTab(targetTab);
+                });
+            });
+
+            // Read URL hash on load
+            const hash = window.location.hash.replace('#', '');
+            if (hash === 'profile') {
+                switchStudentTab('tab-profile');
+            } else if (hash === 'allotment') {
+                switchStudentTab('tab-allotment');
+            }
+
+            // Alert banner helper
+            const alertBanner = document.getElementById('studentAlertBanner');
+            const alertText = document.getElementById('alertText');
+            const alertIcon = document.getElementById('alertIcon');
+
+            function showAlert(message, type = 'success') {
+                alertBanner.className = `student-alert-banner ${type}`;
+                alertText.textContent = message;
+                alertIcon.innerHTML = type === 'success' 
+                    ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+                    : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+                alertBanner.style.display = 'flex';
+                alertBanner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                setTimeout(() => {
+                    alertBanner.style.display = 'none';
+                }, 6000);
+            }
+
+            // Password visibility toggle buttons
+            document.querySelectorAll('.pwd-toggle-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const targetId = btn.getAttribute('data-target');
+                    const input = document.getElementById(targetId);
+                    if (!input) return;
+                    const isPwd = input.type === 'password';
+                    input.type = isPwd ? 'text' : 'password';
+                    btn.querySelector('.eye-open').style.display = isPwd ? 'none' : 'block';
+                    btn.querySelector('.eye-closed').style.display = isPwd ? 'block' : 'none';
+                });
+            });
+
+            // Update Name AJAX Form
+            const updateNameForm = document.getElementById('updateNameForm');
+            const saveNameBtn = document.getElementById('saveNameBtn');
+            const nameInput = document.getElementById('studentNameInput');
+            const topbarName = document.getElementById('topbarStudentName');
+            const topbarAvatar = document.getElementById('topbarAvatar');
+            const profileNameDisplay = document.getElementById('profileNameDisplay');
+
+            if (updateNameForm) {
+                updateNameForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const newName = nameInput.value.trim();
+                    if (!newName || newName.length < 2) {
+                        showAlert('Please enter a valid full name (at least 2 characters).', 'error');
+                        return;
+                    }
+
+                    saveNameBtn.classList.add('is-loading');
+                    saveNameBtn.disabled = true;
+
+                    try {
+                        const res = await fetch("{{ url_for('student_update_name') }}", {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            body: JSON.stringify({ name: newName })
+                        });
+                        const data = await res.json();
+                        if (res.ok && data.success) {
+                            showAlert(data.message || 'Name updated successfully!', 'success');
+                            if (topbarName) topbarName.textContent = newName;
+                            if (profileNameDisplay) profileNameDisplay.textContent = newName;
+                            if (topbarAvatar) topbarAvatar.textContent = newName.charAt(0).toUpperCase();
+                        } else {
+                            showAlert(data.error || 'Failed to update name.', 'error');
+                        }
+                    } catch (err) {
+                        showAlert('Network error while updating name.', 'error');
+                    } finally {
+                        saveNameBtn.classList.remove('is-loading');
+                        saveNameBtn.disabled = false;
+                    }
+                });
+            }
+
+            // Change Password AJAX Form
+            const changePasswordForm = document.getElementById('changePasswordForm');
+            const savePasswordBtn = document.getElementById('savePasswordBtn');
+            const currentPasswordInput = document.getElementById('currentPasswordInput');
+            const newPasswordInput = document.getElementById('newPasswordInput');
+            const confirmPasswordInput = document.getElementById('confirmPasswordInput');
+
+            if (changePasswordForm) {
+                changePasswordForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const current_password = currentPasswordInput.value.trim();
+                    const new_password = newPasswordInput.value.trim();
+                    const confirm_password = confirmPasswordInput.value.trim();
+
+                    if (!current_password) {
+                        showAlert('Please enter your current password.', 'error');
+                        return;
+                    }
+                    if (new_password.length < 4) {
+                        showAlert('New password must be at least 4 characters.', 'error');
+                        return;
+                    }
+                    if (new_password !== confirm_password) {
+                        showAlert('New password and confirmation do not match.', 'error');
+                        return;
+                    }
+
+                    savePasswordBtn.classList.add('is-loading');
+                    savePasswordBtn.disabled = true;
+
+                    try {
+                        const res = await fetch("{{ url_for('student_change_password') }}", {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            body: JSON.stringify({
+                                current_password,
+                                new_password,
+                                confirm_password
+                            })
+                        });
+                        const data = await res.json();
+                        if (res.ok && data.success) {
+                            showAlert(data.message || 'Password changed successfully!', 'success');
+                            changePasswordForm.reset();
+                        } else {
+                            showAlert(data.error || 'Failed to change password.', 'error');
+                        }
+                    } catch (err) {
+                        showAlert('Network error while changing password.', 'error');
+                    } finally {
+                        savePasswordBtn.classList.remove('is-loading');
+                        savePasswordBtn.disabled = false;
+                    }
+                });
+            }
+        });
+    </script>
+
+    <!-- =========================================================
+         CUSTOM CURSOR EFFECT (Curzr - Arrow Pointer)
+         ========================================================= -->
+    <div class="curzr-arrow-pointer" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+            <path class="inner" d="M25,30a5.82,5.82,0,0,1-1.09-.17l-.2-.07-7.36-3.48a.72.72,0,0,0-.35-.08.78.78,0,0,0-.33.07L8.24,29.54a.66.66,0,0,1-.2.06,5.17,5.17,0,0,1-1,.15,3.6,3.6,0,0,1-3.29-5L12.68,4.2a3.59,3.59,0,0,1,6.58,0l9,20.74A3.6,3.6,0,0,1,25,30Z" fill="#F2F5F8" />
+            <path class="outer" d="M16,3A2.59,2.59,0,0,1,18.34,4.6l9,20.74A2.59,2.59,0,0,1,25,29a5.42,5.42,0,0,1-.86-.15l-7.37-3.48a1.84,1.84,0,0,0-.77-.17,1.69,1.69,0,0,0-.73.16l-7.4,3.31a5.89,5.89,0,0,1-.79.12,2.59,2.59,0,0,1-2.37-3.62L13.6,4.6A2.58,2.58,0,0,1,16,3m0-2h0A4.58,4.58,0,0,0,11.76,3.8L2.84,24.33A4.58,4.58,0,0,0,7,30.75a6.08,6.08,0,0,0,1.21-.17,1.87,1.87,0,0,0,.4-.13L16,27.18l7.29,3.44a1.64,1.64,0,0,0,.39.14A6.37,6.37,0,0,0,25,31a4.59,4.59,0,0,0,4.21-6.41l-9-20.75A4.62,4.62,0,0,0,16,1Z" fill="#111920" />
+        </svg>
+    </div>
+
+    <div class="curzr-big-circle" hidden>
+        <div class="circle"></div>
+        <div class="dot"></div>
+    </div>
+
+    <div class="curzr-ring-dot" hidden>
+        <div class="curzr-dot"></div>
+    </div>
+
+    <div class="curzr-circle-and-dot" hidden></div>
+
+    <div class="curzr-glitch-effect" hidden></div>
+
+    <svg class="curzr-motion" hidden>
+        <filter id="motionblur" x="-100%" y="-100%" width="400%" height="400%">
+            <feGaussianBlur class="curzr-motion-blur" stdDeviation="0, 0" />
+        </filter>
+        <circle cx="50%" cy="50%" r="5" fill="#292927" filter="url(#motionblur)" />
+    </svg>
+
+    <!-- =========================================================
+         CUSTOM CURSOR EFFECT - INITIALIZATION
+         ========================================================= -->
+    <script>
+        // ArrowPointer cursor class
+        class ArrowPointer {
+          constructor() {
+            this.root = document.body
+            this.cursor = document.querySelector(".curzr-arrow-pointer")
+
+            this.position = {
+              distanceX: 0,
+              distanceY: 0,
+              distance: 0,
+              pointerX: 0,
+              pointerY: 0,
+            }
+            this.previousPointerX = 0
+            this.previousPointerY = 0
+            this.angle = 0
+            this.previousAngle = 0
+            this.angleDisplace = 0
+            this.degrees = 57.296
+            this.cursorSize = 20
+
+            this.cursorStyle = {
+              boxSizing: 'border-box',
+              position: 'fixed',
+              top: '0px',
+              left: '0px',
+              transform: 'translate(0, 0)',
+              zIndex: '2147483647',
+              width: `${this.cursorSize}px`,
+              height: `${this.cursorSize}px`,
+              transition: '250ms, transform 100ms',
+              userSelect: 'none',
+              pointerEvents: 'none',
+            }
+
+            this.init(this.cursor, this.cursorStyle)
+          }
+
+          init(el, style) {
+            if (!el) return
+            Object.assign(el.style, style)
+            setTimeout(() => {
+              el.removeAttribute("hidden")
+            }, 300)
+            el.style.opacity = 1
+          }
+
+          move(event) {
+            if (!this.cursor) return
+            this.previousPointerX = this.position.pointerX
+            this.previousPointerY = this.position.pointerY
+            this.position.pointerX = event.clientX
+            this.position.pointerY = event.clientY
+            this.position.distanceX = this.previousPointerX - this.position.pointerX
+            this.position.distanceY = this.previousPointerY - this.position.pointerY
+            this.distance = Math.sqrt(
+              this.position.distanceY ** 2 + this.position.distanceX ** 2
+            )
+
+            this.cursor.style.transform = `translate3d(${this.position.pointerX}px, ${this.position.pointerY}px, 0)`
+
+            if (this.distance > 1) {
+              this.rotate(this.position)
+            } else {
+              this.cursor.style.transform += ` rotate(${this.angleDisplace}deg)`
+            }
+          }
+
+          rotate(position) {
+            let unsortedAngle =
+              Math.atan(Math.abs(position.distanceY) / Math.abs(position.distanceX)) *
+              this.degrees
+            this.previousAngle = this.angle
+
+            if (position.distanceX <= 0 && position.distanceY >= 0) {
+              this.angle = 90 - unsortedAngle + 0
+            } else if (position.distanceX < 0 && position.distanceY < 0) {
+              this.angle = unsortedAngle + 90
+            } else if (position.distanceX >= 0 && position.distanceY <= 0) {
+              this.angle = 90 - unsortedAngle + 180
+            } else if (position.distanceX > 0 && position.distanceY > 0) {
+              this.angle = unsortedAngle + 270
+            }
+
+            if (isNaN(this.angle)) {
+              this.angle = this.previousAngle
+            } else {
+              if (this.angle - this.previousAngle <= -270) {
+                this.angleDisplace += 360 + this.angle - this.previousAngle
+              } else if (this.angle - this.previousAngle >= 270) {
+                this.angleDisplace += this.angle - this.previousAngle - 360
+              } else {
+                this.angleDisplace += this.angle - this.previousAngle
+              }
+            }
+            this.cursor.style.left = `${-this.cursorSize / 2}px`
+            this.cursor.style.top = `0px`
+            this.cursor.style.transform += ` rotate(${this.angleDisplace}deg)`
+          }
+
+          click() {
+            if (!this.cursor) return
+            this.cursor.style.transform += ` scale(0.75)`
+            setTimeout(() => {
+              this.cursor.style.transform = this.cursor.style.transform.replace(
+                ` scale(0.75)`,
+                ''
+              )
+            }, 35)
+          }
+
+          hidden() {
+            if (!this.cursor) return
+            this.cursor.style.opacity = 0
+            setTimeout(() => {
+              this.cursor.setAttribute("hidden", "hidden")
+            }, 500)
+          }
+        }
+
+        // Initialize cursor once DOM is ready (only on devices with fine pointer / mouse)
+        document.addEventListener('DOMContentLoaded', () => {
+          if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches && !window.matchMedia('(pointer: fine)').matches) {
+            return
+          }
+
+          const el = document.querySelector('.curzr-arrow-pointer')
+          if (!el) return
+
+          const cursor = new ArrowPointer()
+
+          document.addEventListener('mousemove', function (event) {
+            cursor.move(event)
+          })
+
+          document.addEventListener('click', function () {
+            cursor.click()
+          })
+
+          // Hide on touch devices
+          document.addEventListener('touchstart', function () {
+            el.style.display = 'none'
+          }, { once: true })
+        })
+    </script>
+</body>
+</html>

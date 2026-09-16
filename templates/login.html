@@ -66,13 +66,15 @@
            ========================================================= */
         .login-viewport {
             min-height: 100vh;
+            min-height: 100dvh;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 32px 24px;
+            padding: 24px 16px;
             background: radial-gradient(circle at 50% 48%, #FFFFFF 0%, #F5F7FB 40%, #E8ECF2 100%);
             position: relative;
-            overflow: hidden;
+            overflow-x: hidden;
+            width: 100%;
         }
 
         /* Ambient soft background glow */
@@ -563,37 +565,226 @@
 
         /* Responsive Breakpoint for Tablets and Mobiles */
         @media (max-width: 768px) {
+            .login-viewport {
+                padding: 20px 14px;
+            }
+
             .login-landscape-card {
                 flex-direction: column;
-                max-width: 420px;
+                max-width: 440px;
+                min-height: auto;
+                border-radius: 24px;
             }
 
             .card-visual-panel {
                 width: 100%;
                 flex: none;
-                min-height: 260px;
-                height: 260px;
+                min-height: 200px;
+                height: 200px;
                 border-right: none;
                 border-bottom: 1px solid rgba(197, 204, 214, 0.45);
-                border-top-left-radius: 27px;
-                border-top-right-radius: 27px;
+                border-top-left-radius: 23px;
+                border-top-right-radius: 23px;
                 border-bottom-left-radius: 0;
             }
 
             .sunrise-video {
-                border-top-left-radius: 27px;
-                border-top-right-radius: 27px;
+                border-top-left-radius: 23px;
+                border-top-right-radius: 23px;
                 border-bottom-left-radius: 0;
             }
 
             .video-edge-overlay {
-                border-top-left-radius: 27px;
-                border-top-right-radius: 27px;
+                border-top-left-radius: 23px;
+                border-top-right-radius: 23px;
                 border-bottom-left-radius: 0;
             }
 
+            .video-quote-container {
+                top: 18px;
+                left: 16px;
+                right: 16px;
+            }
+
+            .video-quote-text {
+                font-size: 13.5px;
+                line-height: 1.45;
+            }
+
             .card-form-panel {
-                padding: 34px 28px 40px;
+                padding: 28px 22px 34px;
+            }
+
+            .form-brand-header {
+                margin-bottom: 22px;
+            }
+
+            .brand-logo-box {
+                width: 62px;
+                height: 62px;
+                border-radius: 18px;
+                margin-bottom: 10px;
+            }
+
+            .brand-logo-box svg {
+                width: 32px;
+                height: 32px;
+            }
+
+            .brand-project-name {
+                font-size: 26px;
+            }
+        }
+
+        /* Responsive Breakpoint for Compact Smartphones (<= 480px) */
+        @media (max-width: 480px) {
+            .login-viewport {
+                padding: 14px 10px;
+            }
+
+            .login-landscape-card {
+                border-radius: 20px;
+                box-shadow: 0 12px 30px rgba(71, 130, 210, 0.18), -6px -6px 20px rgba(255, 255, 255, 0.85);
+            }
+
+            .card-visual-panel {
+                min-height: 160px;
+                height: 160px;
+                border-top-left-radius: 19px;
+                border-top-right-radius: 19px;
+            }
+
+            .sunrise-video,
+            .video-edge-overlay {
+                border-top-left-radius: 19px;
+                border-top-right-radius: 19px;
+            }
+
+            .video-quote-container {
+                top: 14px;
+            }
+
+            .video-quote-text {
+                font-size: 12px;
+            }
+
+            .card-form-panel {
+                padding: 20px 16px 26px;
+            }
+
+            .form-brand-header {
+                margin-bottom: 16px;
+            }
+
+            .brand-logo-box {
+                width: 52px;
+                height: 52px;
+                border-radius: 16px;
+                margin-bottom: 8px;
+            }
+
+            .brand-logo-box svg {
+                width: 26px;
+                height: 26px;
+            }
+
+            .brand-project-name {
+                font-size: 22px;
+            }
+
+            .auth-form {
+                max-width: 100%;
+            }
+
+            .form-group {
+                margin-bottom: 14px;
+            }
+
+            .input-wrapper {
+                border-radius: 14px;
+            }
+
+            .form-input {
+                height: 48px;
+                font-size: 14.5px;
+                padding: 0 42px 0 44px;
+            }
+
+            .btn-auth-submit {
+                height: 48px;
+                font-size: 14.5px;
+                border-radius: 13px;
+            }
+        }
+
+        /* Mobile Landscape Orientation Optimization */
+        @media (max-height: 540px) and (orientation: landscape) {
+            .login-viewport {
+                padding: 12px 16px;
+                min-height: 100vh;
+            }
+
+            .login-landscape-card {
+                flex-direction: row;
+                max-width: 660px;
+                min-height: 310px;
+            }
+
+            .card-visual-panel {
+                width: 250px;
+                flex: 0 0 250px;
+                min-height: 310px;
+                height: auto;
+                border-right: 1px solid rgba(212, 199, 181, 0.5);
+                border-bottom: none;
+                border-top-left-radius: 27px;
+                border-bottom-left-radius: 27px;
+                border-top-right-radius: 0;
+            }
+
+            .sunrise-video,
+            .video-edge-overlay {
+                border-top-left-radius: 27px;
+                border-bottom-left-radius: 27px;
+                border-top-right-radius: 0;
+            }
+
+            .card-form-panel {
+                padding: 18px 24px;
+            }
+
+            .form-brand-header {
+                margin-bottom: 12px;
+            }
+
+            .brand-logo-box {
+                width: 44px;
+                height: 44px;
+                border-radius: 14px;
+                margin-bottom: 6px;
+            }
+
+            .brand-logo-box svg {
+                width: 22px;
+                height: 22px;
+            }
+
+            .brand-project-name {
+                font-size: 20px;
+            }
+
+            .form-group {
+                margin-bottom: 10px;
+            }
+
+            .form-input {
+                height: 44px;
+                font-size: 14px;
+            }
+
+            .btn-auth-submit {
+                height: 44px;
+                font-size: 14px;
             }
         }
     </style>
@@ -667,7 +858,7 @@
                                 </svg>
                             </span>
                             <input type="email" id="username" name="username" class="form-input"
-                                placeholder="Username" value="{{ username or '' }}" required autocomplete="username"
+                                placeholder="Email Address" value="{{ username or '' }}" required autocomplete="username"
                                 spellcheck="false" autofocus>
                         </div>
                     </div>
@@ -716,6 +907,11 @@
                             <polyline points="12 5 19 12 12 19" />
                         </svg>
                     </button>
+
+                    <!-- Student Login Tip -->
+                    <div style="text-align: center; margin-top: 14px; font-size: 12px; color: #78716C; font-weight: 600; line-height: 1.4;">
+                        Students: Initial default password is your Enrollment No.
+                    </div>
                 </form>
             </div>
         </div>
@@ -951,8 +1147,12 @@
             }
         }
 
-        // Boot custom cursor
+        // Boot custom cursor (only on devices with mouse/trackpad fine pointer)
         document.addEventListener('DOMContentLoaded', () => {
+            if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches && !window.matchMedia('(pointer: fine)').matches) {
+                return;
+            }
+
             const cursorEl = document.querySelector('.curzr-arrow-pointer');
             if (cursorEl) {
                 const cursor = new ArrowPointer();

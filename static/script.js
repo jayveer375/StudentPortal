@@ -37,6 +37,9 @@ const jumpToDispatchBtn = document.getElementById('jumpToDispatchBtn');
 const emptyStateUploadBtn = document.getElementById('emptyStateUploadBtn');
 const topbarUploadBtn = document.getElementById('topbarUploadBtn');
 const appSidebar = document.getElementById('appSidebar');
+const mobileNavToggle = document.getElementById('mobileNavToggle');
+const sidebarCloseBtn = document.getElementById('sidebarCloseBtn');
+const sidebarBackdrop = document.getElementById('sidebarBackdrop');
 
 // Badges
 const rosterBadge = document.getElementById('rosterBadge');
@@ -57,6 +60,7 @@ const copyNotFoundBtn = document.getElementById('copyNotFoundBtn');
 // View Names Mapping for Breadcrumbs
 const viewTitleMap = {
     'view-upload': 'Upload File',
+    'view-arrangements': 'Manage Seating',
     'view-roster': 'Students',
     'view-audit': 'Issues',
     'view-dispatch': 'Send Notifications',
@@ -71,6 +75,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupRosterSearchFilter();
     setupExportUtilities();
     restoreSessionData();
+    loadArrangements();
 });
 
 // =========================================================
@@ -84,10 +89,36 @@ function setupSidebarNavigation() {
             e.preventDefault();
             const targetView = this.getAttribute('data-view');
             switchView(targetView);
+            closeMobileSidebar();
         });
     });
 
-    // Sidebar collapse toggle — arrow button at bottom of sidebar footer
+    // Mobile navigation drawer toggle controls
+    if (mobileNavToggle) {
+        mobileNavToggle.addEventListener('click', toggleMobileSidebar);
+    }
+    if (sidebarCloseBtn) {
+        sidebarCloseBtn.addEventListener('click', closeMobileSidebar);
+    }
+    if (sidebarBackdrop) {
+        sidebarBackdrop.addEventListener('click', closeMobileSidebar);
+    }
+
+    // Close mobile drawer on Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeMobileSidebar();
+        }
+    });
+
+    // Auto-close mobile drawer when window resized past tablet breakpoint (> 1024px)
+    window.addEventListener('resize', () => {
+        if (window.innerWidth > 1024) {
+            closeMobileSidebar();
+        }
+    });
+
+    // Sidebar collapse toggle — arrow button at bottom of sidebar footer (desktop mode)
     const sidebarCollapseBtn = document.getElementById('sidebarCollapseBtn');
     const mainViewport       = document.querySelector('.main-viewport');
 
@@ -97,16 +128,6 @@ function setupSidebarNavigation() {
             mainViewport.classList.toggle('sidebar-collapsed', isCollapsed);
         });
     }
-
-    // On mobile: collapse sidebar when a nav item is clicked
-    document.querySelectorAll('.sidebar .nav-item').forEach(item => {
-        item.addEventListener('click', () => {
-            if (window.innerWidth <= 860) {
-                appSidebar.classList.add('collapsed');
-                mainViewport?.classList.add('sidebar-collapsed');
-            }
-        });
-    });
 
     // Direct link buttons
     if (jumpToRosterBtn) jumpToRosterBtn.addEventListener('click', () => switchView('view-roster'));
@@ -150,6 +171,31 @@ function switchView(viewId) {
     // Update URL hash
     history.replaceState(null, null, `#${viewId}`);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    if (viewId === 'view-arrangements') {
+        loadArrangements();
+    }
+}
+
+// Mobile sidebar drawer helper functions
+function openMobileSidebar() {
+    if (appSidebar) appSidebar.classList.add('open');
+    if (sidebarBackdrop) sidebarBackdrop.classList.add('active');
+    document.body.classList.add('drawer-open');
+}
+
+function closeMobileSidebar() {
+    if (appSidebar) appSidebar.classList.remove('open');
+    if (sidebarBackdrop) sidebarBackdrop.classList.remove('active');
+    document.body.classList.remove('drawer-open');
+}
+
+function toggleMobileSidebar() {
+    if (appSidebar && appSidebar.classList.contains('open')) {
+        closeMobileSidebar();
+    } else {
+        openMobileSidebar();
+    }
 }
 
 // =========================================================
@@ -175,6 +221,24 @@ function setupEventListeners() {
 
     // Cancel
     cancelBtn.addEventListener('click', handleCancel);
+
+    // Arrangements buttons
+    const jumpToArrangementsBtn = document.getElementById('jumpToArrangementsBtn');
+    if (jumpToArrangementsBtn) {
+        jumpToArrangementsBtn.addEventListener('click', () => switchView('view-arrangements'));
+    }
+    const refreshArrangementsBtn = document.getElementById('refreshArrangementsBtn');
+    if (refreshArrangementsBtn) {
+        refreshArrangementsBtn.addEventListener('click', () => loadArrangements());
+    }
+    const newArrangementUploadBtn = document.getElementById('newArrangementUploadBtn');
+    if (newArrangementUploadBtn) {
+        newArrangementUploadBtn.addEventListener('click', () => switchView('view-upload'));
+    }
+    const emptyArrangementsUploadBtn = document.getElementById('emptyArrangementsUploadBtn');
+    if (emptyArrangementsUploadBtn) {
+        emptyArrangementsUploadBtn.addEventListener('click', () => switchView('view-upload'));
+    }
 }
 
 // =========================================================
@@ -259,13 +323,28 @@ async function handleFileUpload(event) {
             saveSessionData(result);
 
             displayResults(result);
-            showStatus(uploadStatus, `✅ Processed successfully! ${result.total_matched} student(s) matched in database.`, 'success');
+            showStatus(uploadStatus, `✅ Processed successfully! ${result.total_matched} student(s) matched in database. (Status: Pending Allocation)`, 'success');
             
             if (quickJumpBanner) {
                 quickJumpTitle.textContent = `🎉 Ingestion Complete: ${result.total_extracted} Extracted Seats`;
-                quickJumpDesc.textContent = `${result.total_matched} matched in DB • ${result.total_not_found} not found. Ready to review or dispatch.`;
+                quickJumpDesc.textContent = `${result.total_matched} matched in DB • Status: Pending Allocation. Click "Allocate Seating Arrangement" below to make it visible to students.`;
                 quickJumpBanner.classList.add('visible');
+
+                const quickAllocateBtn = document.getElementById('quickAllocateBtn');
+                if (quickAllocateBtn && result.arrangement_id) {
+                    quickAllocateBtn.style.display = 'inline-flex';
+                    quickAllocateBtn.disabled = false;
+                    quickAllocateBtn.className = 'btn btn-crimson btn-sm';
+                    quickAllocateBtn.innerHTML = `
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        <span>Allocate Seating Arrangement</span>
+                    `;
+                    quickAllocateBtn.onclick = async () => {
+                        await allocateArrangement(result.arrangement_id, quickAllocateBtn);
+                    };
+                }
             }
+            loadArrangements();
         } else {
             showStatus(uploadStatus, `❌ ${result.error || 'Error processing file'}`, 'error');
         }
@@ -772,6 +851,199 @@ function escapeHtml(text) {
 
 
 // =========================================================
+// SEATING ARRANGEMENTS MANAGEMENT
+// =========================================================
+let uploadedArrangements = [];
+
+async function loadArrangements() {
+    const tableBody = document.getElementById('arrangementsTableBody');
+    const emptyState = document.getElementById('arrangementsEmptyState');
+    const badge = document.getElementById('arrangementsBadge');
+
+    try {
+        const response = await fetch('/api/arrangements');
+        const data = await response.json();
+
+        if (data.success) {
+            uploadedArrangements = data.arrangements || [];
+            if (badge) badge.textContent = uploadedArrangements.length;
+
+            if (tableBody) {
+                renderArrangementsTable(uploadedArrangements);
+            }
+        }
+    } catch (err) {
+        console.error('Error fetching arrangements:', err);
+        if (tableBody) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 30px; color: var(--color-danger);">
+                        ⚠️ Failed to load seating arrangements. Please check your connection.
+                    </td>
+                </tr>
+            `;
+        }
+    }
+}
+
+function renderArrangementsTable(arrangements) {
+    const tableBody = document.getElementById('arrangementsTableBody');
+    const emptyState = document.getElementById('arrangementsEmptyState');
+    const table = document.getElementById('arrangementsTable');
+
+    if (!tableBody) return;
+
+    if (!arrangements || arrangements.length === 0) {
+        tableBody.innerHTML = '';
+        if (table) table.style.display = 'none';
+        if (emptyState) emptyState.style.display = 'flex';
+        return;
+    }
+
+    if (table) table.style.display = 'table';
+    if (emptyState) emptyState.style.display = 'none';
+
+    tableBody.innerHTML = arrangements.map((arr, idx) => {
+        const isAllocated = arr.is_allocated;
+        const statusHtml = isAllocated
+            ? `<span class="badge-status-pill badge-allocated"><span class="status-dot green"></span> Allocated to Students</span>`
+            : `<span class="badge-status-pill badge-pending"><span class="status-dot amber"></span> Pending (Not Allocated)</span>`;
+
+        const allocateBtnHtml = isAllocated
+            ? `<button class="btn btn-secondary btn-sm" disabled style="opacity: 0.7; cursor: default;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                <span>Allocated</span>
+               </button>`
+            : `<button class="btn btn-crimson btn-sm btn-allocate-arr" data-id="${arr.id}" onclick="allocateArrangement(${arr.id}, this)">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                <span>Allocate Seating</span>
+               </button>`;
+
+        const deleteBtnHtml = `
+            <button class="btn btn-secondary btn-sm btn-delete-arr" data-id="${arr.id}" data-filename="${escapeHtml(arr.filename)}" onclick="deleteArrangement(${arr.id}, '${escapeHtml(arr.filename).replace(/'/g, "\\'")}', this)">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                <span>Delete</span>
+            </button>
+        `;
+
+        return `
+            <tr class="arrangement-row ${isAllocated ? 'row-allocated' : 'row-pending'}">
+                <td style="font-weight: 600; color: var(--text-secondary);">${idx + 1}</td>
+                <td>
+                    <div style="font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        <span>${escapeHtml(arr.filename)}</span>
+                    </div>
+                    ${arr.allocated_at ? `<div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 2px;">Allocated: ${escapeHtml(arr.allocated_at)}</div>` : ''}
+                </td>
+                <td style="color: var(--text-secondary); font-size: 13px;">${escapeHtml(arr.uploaded_at) || '—'}</td>
+                <td>
+                    <span class="badge-count-pill">${arr.total_students} Students</span>
+                </td>
+                <td>${statusHtml}</td>
+                <td style="text-align: right;">
+                    <div style="display: inline-flex; gap: 8px; justify-content: flex-end; align-items: center;">
+                        ${allocateBtnHtml}
+                        ${deleteBtnHtml}
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+async function allocateArrangement(id, btnElement) {
+    const statusContainer = document.getElementById('arrangementsActionStatus');
+    if (btnElement) {
+        btnElement.disabled = true;
+        btnElement.innerHTML = `<span>Allocating...</span>`;
+    }
+
+    try {
+        const response = await fetch(`/api/arrangements/${id}/allocate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const result = await response.json();
+
+        if (result.success) {
+            showStatus(statusContainer, `✅ ${result.message}`, 'success');
+            if (btnElement) {
+                btnElement.className = 'btn btn-secondary btn-sm';
+                btnElement.disabled = true;
+                btnElement.style.opacity = '0.7';
+                btnElement.innerHTML = `
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    <span>Allocated</span>
+                `;
+            }
+
+            const quickAllocateBtn = document.getElementById('quickAllocateBtn');
+            if (quickAllocateBtn) {
+                quickAllocateBtn.disabled = true;
+                quickAllocateBtn.className = 'btn btn-secondary btn-sm';
+                quickAllocateBtn.innerHTML = `<span>✓ Allocated to Students</span>`;
+            }
+            if (quickJumpDesc) {
+                quickJumpDesc.textContent = '✅ Seating arrangement successfully allocated to students!';
+            }
+
+            await loadArrangements();
+        } else {
+            showStatus(statusContainer, `❌ ${result.error || 'Failed to allocate arrangement.'}`, 'error');
+            if (btnElement) {
+                btnElement.disabled = false;
+                btnElement.innerHTML = `<span>Allocate Seating</span>`;
+            }
+        }
+    } catch (err) {
+        console.error('Error allocating arrangement:', err);
+        showStatus(statusContainer, '❌ Network error allocating arrangement.', 'error');
+        if (btnElement) {
+            btnElement.disabled = false;
+            btnElement.innerHTML = `<span>Allocate Seating</span>`;
+        }
+    }
+}
+
+async function deleteArrangement(id, filename, btnElement) {
+    const statusContainer = document.getElementById('arrangementsActionStatus');
+    const confirmed = confirm(`Are you sure you want to delete the seating arrangement "${filename}"?\n\nThis will remove all associated student seat allocations.`);
+    if (!confirmed) return;
+
+    if (btnElement) {
+        btnElement.disabled = true;
+        btnElement.innerHTML = `<span>Deleting...</span>`;
+    }
+
+    try {
+        const response = await fetch(`/api/arrangements/${id}/delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const result = await response.json();
+
+        if (result.success) {
+            showStatus(statusContainer, `🗑️ ${result.message}`, 'success');
+            await loadArrangements();
+        } else {
+            showStatus(statusContainer, `❌ ${result.error || 'Failed to delete arrangement.'}`, 'error');
+            if (btnElement) {
+                btnElement.disabled = false;
+                btnElement.innerHTML = `<span>Delete</span>`;
+            }
+        }
+    } catch (err) {
+        console.error('Error deleting arrangement:', err);
+        showStatus(statusContainer, '❌ Network error deleting arrangement.', 'error');
+        if (btnElement) {
+            btnElement.disabled = false;
+            btnElement.innerHTML = `<span>Delete</span>`;
+        }
+    }
+}
+
+// =========================================================
 // CUSTOM CURSOR EFFECT (Curzr - Arrow Pointer)
 // Initializes after DOM is ready and follows the mouse.
 // =========================================================
@@ -895,8 +1167,13 @@ class ArrowPointer {
   }
 }
 
-// Boot cursor after DOM is ready
+// Boot cursor after DOM is ready (only on devices with fine pointer / mouse)
 ;(function initCursor() {
+  // If device is touch-primary without fine pointer, keep native interaction
+  if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches && !window.matchMedia('(pointer: fine)').matches) {
+    return
+  }
+
   const el = document.querySelector('.curzr-arrow-pointer')
   if (!el) return
 
@@ -910,7 +1187,7 @@ class ArrowPointer {
     cursor.click()
   })
 
-  // Keep default cursor hidden on touch devices
+  // Disable if user touches screen
   document.addEventListener('touchstart', function () {
     el.style.display = 'none'
   }, { once: true })
