@@ -1,0 +1,47 @@
+Sample PDF Content Format
+========================
+
+This file shows the expected format of the seating arrangement PDF.
+Your actual PDF should contain similar information.
+
+GOVERNMENT POLYTECHNIC AHMEDABAD
+EXAM SEATING ARRANGEMENT
+
+Subject: Network Programming
+Subject Code: 41046307
+Date: 12/09/2026
+Time: 10:30 AM – 1:00 PM
+
+Block: 1A110
+Semester: SEM 4
+
+Student List:
+246171063001 - Seat 1
+246171063003 - Seat 2
+246171063005 - Seat 3
+246171063006 - Seat 4
+246171063009 - Seat 5
+
+Room Number: 101
+
+Block: 1A110
+Semester: SEM 6
+
+Student List:
+216170307039 - Seat 6
+216170307048 - Seat 7
+216170307228 - Seat 8
+226178307016 - Seat 9
+236170307002 - Seat 10
+
+Room Number: 102
+
+Note: The PDF parser will extract:
+- Enrollment numbers (12-digit numbers)
+- Semester information (SEM X)
+- Block information
+- Room numbers
+- Subject code
+- Date and time information
+
+Make sure your PDF contains these elements for proper extraction.

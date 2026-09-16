@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ExamDesk — GTU Seating Arrangement & Notification System</title>
+    <meta name="description" content="Professional Exam Seating Arrangement Management, Database Matcher, and Automated Notification Portal for Government Polytechnic Ahmedabad.">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- =========================================================
+             LEFT SIDEBAR NAVIGATION
+             ========================================================= -->
+        <aside class="sidebar" id="appSidebar">
+            <div class="sidebar-header">
+                <!-- Logo: Graduation Cap -->
+                <div class="sidebar-logo-icon">
+                    <svg viewBox="0 0 24 24"><path d="M22 10v6M2 10l10-5 10 5-10 5-10-5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+                </div>
+                <div>
+                    <div class="sidebar-brand-name">Exam<span class="highlight">Desk</span></div>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav-container" aria-label="Main Navigation">
+                <div class="nav-section-title">Menu</div>
+
+                <button type="button" class="nav-item active" data-view="view-upload" id="navUpload">
+                    <div class="nav-item-left">
+                        <span class="nav-item-icon">
+                            <!-- Upload / Inbox -->
+                            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        </span>
+                        <span>Upload File</span>
+                    </div>
+                </button>
+
+                <button type="button" class="nav-item" data-view="view-roster" id="navRoster">
+                    <div class="nav-item-left">
+                        <span class="nav-item-icon">
+                            <!-- Users list -->
+                            <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        </span>
+                        <span>Students</span>
+                    </div>
+                    <span id="rosterBadge" class="nav-item-badge">0</span>
+                </button>
+
+                <button type="button" class="nav-item" data-view="view-audit" id="navAudit">
+                    <div class="nav-item-left">
+                        <span class="nav-item-icon">
+                            <!-- Shield with exclamation -->
+                            <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        </span>
+                        <span>Issues</span>
+                    </div>
+                    <span id="auditBadge" class="nav-item-badge warning" style="display: none;">0</span>
+                </button>
+
+                <button type="button" class="nav-item" data-view="view-dispatch" id="navDispatch">
+                    <div class="nav-item-left">
+                        <span class="nav-item-icon">
+                            <!-- Send / Paper plane -->
+                            <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                        </span>
+                        <span>Send<br>Notifications</span>
+                    </div>
+                    <span id="dispatchBadge" class="nav-item-badge">Ready</span>
+                </button>
+
+
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="sidebar-org-card">
+                    <div class="org-avatar">
+                        <!-- Building / institution -->
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><path d="M12 3V2"/><path d="M2 7l10-5 10 5"/>
+                        </svg>
+                    </div>
+                    <div class="org-info-text">
+                        <div class="org-info-name">GP Ahmedabad</div>
+                        <div class="org-info-sub">Computer Engineering Dept.</div>
+                    </div>
+                </div>
+
+                <!-- Collapse / Expand Arrow -->
+                <button type="button" class="sidebar-collapse-btn" id="sidebarCollapseBtn" aria-label="Toggle Sidebar">
+                    <!-- Left arrow shown when expanded; right arrow shown when collapsed (via JS class) -->
+                    <svg class="collapse-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="15 18 9 12 15 6"/>
+                    </svg>
+                </button>
+            </div>
+        </aside>
+
+        <!-- =========================================================
+             MAIN VIEWPORT & TOPBAR
+             ========================================================= -->
+        <div class="main-viewport">
+            <header class="topbar">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div class="topbar-breadcrumbs">
+                        <span class="breadcrumb-root">ExamDesk</span>
+                        <span class="breadcrumb-sep">/</span>
+                        <span class="breadcrumb-current" id="currentBreadcrumb">Upload File</span>
+                    </div>
+                </div>
+
+                <div class="topbar-actions">
+                    <button type="button" class="topbar-pill-btn primary" id="topbarUploadBtn">
+                        <!-- Upload icon -->
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 5 5 12"/></svg>
+                        <span>New Upload</span>
+                    </button>
+
+                    <div class="topbar-divider"></div>
+
+                    <!-- Authenticated Admin Profile & Sign Out -->
+                    <div class="admin-account-pill">
+                        <div class="admin-account-avatar" title="Logged in as System Administrator">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                            <span class="online-indicator"></span>
+                        </div>
+                        <div class="admin-account-meta">
+                            <span class="admin-title">Admin</span>
+                            <span class="admin-email">{{ admin_user or 'Admin@gmail.com' }}</span>
+                        </div>
+                        <a href="{{ url_for('logout') }}" class="btn-signout-danger" id="logoutBtn" title="Sign out of ExamDesk">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                            <span>Sign Out</span>
+                        </a>
+                    </div>
+                </div>
+            </header>
+
+            <main class="content-area">
+                <!-- =========================================================
+                     VIEW 1: UPLOAD & INGESTION ENGINE
+                     ========================================================= -->
+                <section id="view-upload" class="view-section active">
+                    <div class="upload-hero-wrapper">
+                        <h1 class="upload-hero-title">Upload Seating Arrangement</h1>
+                        <p class="upload-hero-desc">
+                            Upload a PDF or Excel file of the seating arrangement. The system will automatically read enrollment numbers, blocks, rooms, and timings, then match them with student records in the database.
+                        </p>
+
+                        <form id="uploadForm" enctype="multipart/form-data">
+                            <div class="neo-search-bar">
+                                <div class="file-input-wrapper">
+                                    <input type="file" id="pdfFile" name="pdf_file" accept=".pdf,.xlsx,.xls" required>
+                                    <label for="pdfFile" class="file-label">
+                                        <!-- File icon -->
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:#64748B"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                        <span class="file-label-text">Choose PDF or Excel File (.pdf, .xlsx, .xls)</span>
+                                    </label>
+                                </div>
+                                <button type="submit" class="btn btn-crimson" id="processSubmitBtn">
+                                    <!-- Cpu / Process icon -->
+                                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>
+                                    <span>Process Seating</span>
+                                </button>
+                            </div>
+                        </form>
+
+                        <!-- Drag and Drop Zone -->
+                        <div class="dropzone-box" id="dropzoneArea">
+                            <div class="dropzone-icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            </div>
+                            <div class="dropzone-text">Drag and drop your seating document here</div>
+                            <div class="dropzone-subtext">Automatic block merge detection & 12-digit enrollment extraction</div>
+                            <div class="format-tags">
+                                <span class="format-pill">PDF (.pdf)</span>
+                                <span class="format-pill">Excel (.xlsx / .xls)</span>
+                                <span class="format-pill">Max: 16 MB</span>
+                            </div>
+                        </div>
+
+                        <div id="uploadStatus" class="status"></div>
+
+                        <!-- Quick Jump Banner -->
+                        <div id="quickJumpBanner" class="quick-jump-banner">
+                            <div>
+                                <strong id="quickJumpTitle">Seating File Processed!</strong>
+                                <div id="quickJumpDesc" style="font-size: 12.5px; color: var(--text-secondary);">Ready to view student roster or trigger message broadcast.</div>
+                            </div>
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                <button type="button" class="btn btn-secondary btn-sm" id="jumpToRosterBtn">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                                    View Students
+                                </button>
+                                <button type="button" class="btn btn-crimson btn-sm" id="jumpToDispatchBtn">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                                    Send Notifications
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- =========================================================
+                     VIEW 2: STUDENT SEATING ROSTER
+                     ========================================================= -->
+                <section id="view-roster" class="view-section">
+                    <div class="saas-card">
+                        <div class="saas-card-header">
+                            <div class="card-title-group">
+                                <div class="card-title-icon">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                                </div>
+                                <div>
+                                    <h2 class="card-title">Students</h2>
+                                    <div class="card-subtitle">All students matched from the database with their room, block, subject, and exam time</div>
+                                </div>
+                            </div>
+                            <div class="toolbar-actions">
+                                <button type="button" class="btn-copy-retro" id="copyRosterBtn">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                    Copy Records
+                                </button>
+                                <button type="button" class="btn-copy-retro" id="exportCsvBtn">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                    Export CSV
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- KPI Summary Tiles -->
+                        <div class="summary">
+                            <div class="summary-item total">
+                                <div class="summary-icon">
+                                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                                </div>
+                                <div class="summary-info">
+                                    <span class="label">Total Extracted</span>
+                                    <span id="totalExtracted" class="value">0</span>
+                                </div>
+                            </div>
+                            <div class="summary-item matched">
+                                <div class="summary-icon">
+                                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                </div>
+                                <div class="summary-info">
+                                    <span class="label">Matched in DB</span>
+                                    <span id="totalMatched" class="value">0</span>
+                                </div>
+                            </div>
+                            <div class="summary-item not-found">
+                                <div class="summary-icon">
+                                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                                </div>
+                                <div class="summary-info">
+                                    <span class="label">Not In DB</span>
+                                    <span id="totalNotFound" class="value">0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Empty state -->
+                        <div id="rosterEmptyState" class="empty-state-box">
+                            <div class="empty-state-icon">
+                                <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+                            </div>
+                            <div class="empty-state-title">No Seating Data Loaded Yet</div>
+                            <div class="empty-state-desc">Upload a seating arrangement PDF or Excel file to populate student allocations.</div>
+                            <button type="button" class="btn btn-crimson btn-sm" id="emptyStateUploadBtn">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                Upload Seating File
+                            </button>
+                        </div>
+
+                        <div id="resultsSection" style="display: none;">
+                            <!-- Filter Toolbar -->
+                            <div class="table-toolbar">
+                                <div class="toolbar-search">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                    <input type="text" id="rosterSearchInput" placeholder="Search by name, enrollment, room, block, subject...">
+                                </div>
+                                <div class="toolbar-actions">
+                                    <select id="rosterSemFilter" class="toolbar-select">
+                                        <option value="all">All Semesters</option>
+                                        <option value="4">Semester 4</option>
+                                        <option value="6">Semester 6</option>
+                                        <option value="1">Semester 1</option>
+                                        <option value="2">Semester 2</option>
+                                        <option value="3">Semester 3</option>
+                                        <option value="5">Semester 5</option>
+                                    </select>
+                                    <span id="rosterFilterCount" class="badge-tag" style="padding: 4px 10px;">Showing 0 students</span>
+                                </div>
+                            </div>
+
+                            <div id="matchedStudentsSection">
+                                <div class="table-wrapper">
+                                    <table id="matchedStudentsTable">
+                                        <thead>
+                                            <tr>
+                                                <th>Student Name</th>
+                                                <th>Enrollment No.</th>
+                                                <th>Email Address</th>
+                                                <th>Phone</th>
+                                                <th>Semester</th>
+                                                <th>Block</th>
+                                                <th>Room</th>
+                                                <th>Subject</th>
+                                                <th>Date</th>
+                                                <th>Time</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- =========================================================
+                     VIEW 3: DISCREPANCY & EXCEPTION AUDIT
+                     ========================================================= -->
+                <section id="view-audit" class="view-section">
+                    <div class="saas-card">
+                        <div class="saas-card-header">
+                            <div class="card-title-group">
+                                <div class="card-title-icon">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                                </div>
+                                <div>
+                                    <h2 class="card-title">Issues</h2>
+                                    <div class="card-subtitle">Enrollment numbers not found in the database, or students with missing or invalid email addresses</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="auditCleanState" class="audit-clean-state" style="display: none;">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                            <div>
+                                <strong>Clean Audit Report!</strong>
+                                <div style="font-size: 12.5px; color: #166534;">All extracted seating numbers matched with the student database, and all emails are verified.</div>
+                            </div>
+                        </div>
+
+                        <div id="auditEmptyPrompt" class="empty-state-box">
+                            <div class="empty-state-icon">
+                                <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            </div>
+                            <div class="empty-state-title">Audit Ready</div>
+                            <div class="empty-state-desc">Upload a seating file to run automatic database verification and MX record checks.</div>
+                        </div>
+
+                        <!-- Not Found Section -->
+                        <div id="notFoundSection" style="display: none; margin-bottom: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                                <h3 style="font-size: 16px; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                                    Numbers Missing From Database
+                                    <span id="notFoundCountBadge" class="nav-item-badge warning">0</span>
+                                </h3>
+                                <button type="button" class="btn-copy-retro" id="copyNotFoundBtn">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                    Copy Numbers
+                                </button>
+                            </div>
+                            <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 10px;">
+                                These 12-digit enrollment numbers were parsed from the seating document, but no corresponding student profile exists in PostgreSQL.
+                            </p>
+                            <div id="notFoundList" class="not-found-list"></div>
+                        </div>
+
+                        <!-- Invalid Email Section -->
+                        <div id="invalidEmailSection" style="display: none;">
+                            <h3 style="font-size: 16px; color: #991B1B; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                                Invalid or Missing Email Addresses
+                                <span id="invalidEmailCountBadge" class="nav-item-badge" style="background: #FEE2E2; color: #991B1B;">0</span>
+                            </h3>
+                            <p class="invalid-email-note">
+                                The following students have missing emails or domain DNS lookup failures. Emails will <strong>not</strong> be dispatched to them.
+                            </p>
+                            <div class="invalid-email-list" id="invalidEmailList"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- =========================================================
+                     VIEW 4: NOTIFICATION DISPATCH CENTER
+                     ========================================================= -->
+                <section id="view-dispatch" class="view-section">
+                    <div class="saas-card">
+                        <div class="saas-card-header">
+                            <div class="card-title-group">
+                                <div class="card-title-icon">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                                </div>
+                                <div>
+                                    <h2 class="card-title">Send Notifications</h2>
+                                    <div class="card-subtitle">Send exam seating details to students via Email or WhatsApp</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Channel Cards Grid -->
+                        <div class="dispatch-cards-grid">
+                            <!-- Channel 1: Email -->
+                            <div class="dispatch-channel-card">
+                                <div class="channel-card-top">
+                                    <span class="channel-badge email">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                                        SMTP Email
+                                    </span>
+                                    <h3 class="channel-title">Send Email</h3>
+                                    <p class="channel-desc">Sends each student a personal email with their room number, block, subject, date, and time.</p>
+                                    <div class="message-preview-box">Subject: Exam Seating Arrangement
+Dear {name},
+Your exam seating arrangement is:
+Enrollment: {enrollment_number} | SEM {semester}
+Subject: {subject} | Date: {date} | Time: {time}
+Location: Block {block}, Room {room}
+- {college_name}</div>
+                                </div>
+                                <div>
+                                    <button id="sendEmailsBtn" class="btn btn-crimson" style="width: 100%;">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                                        Send Emails
+                                    </button>
+                                </div>
+                            </div>
+
+                        <!-- Broadcast Controls -->
+                        <div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 12px;">
+                            <button id="cancelBtn" class="btn btn-danger" style="display: none;">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                                Stop
+                            </button>
+                        </div>
+
+                        <div id="messageStatus" class="status"></div>
+
+                        <!-- Live Progress Monitor -->
+                        <div id="progressSection" class="progress-section" style="display: none;">
+                            <div class="progress-header">
+                                <h3 id="progressTitle">Message Sending Progress</h3>
+                                <span class="badge-tag blue" id="progressModeBadge">Active Broadcast</span>
+                            </div>
+
+                            <div class="progress-bar-container">
+                                <div class="progress-bar">
+                                    <div id="progressBarFill" class="progress-bar-fill"></div>
+                                </div>
+                                <div id="progressText" class="progress-text">0 / 0</div>
+                            </div>
+
+                            <div class="progress-counters">
+                                <div class="counter-item">
+                                    <span class="counter-label">Recipients</span>
+                                    <span id="totalCount" class="counter-value">0</span>
+                                </div>
+                                <div class="counter-item">
+                                    <span class="counter-label">Sending</span>
+                                    <span id="currentCount" class="counter-value">0</span>
+                                </div>
+                                <div class="counter-item success">
+                                    <span class="counter-label">Sent</span>
+                                    <span id="sentCount" class="counter-value">0</span>
+                                </div>
+                                <div class="counter-item error">
+                                    <span class="counter-label">Failed</span>
+                                    <span id="failedCount" class="counter-value">0</span>
+                                </div>
+                            </div>
+
+                            <div id="currentStatus" class="current-status">
+                                <span class="status-prompt-symbol">&gt;</span>
+                                <span>System ready to dispatch notifications...</span>
+                            </div>
+
+                            <div id="failedMessagesList" class="failed-emails" style="display: none;">
+                                <h4>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                                    Failed Deliveries:
+                                </h4>
+                                <div id="failedMessagesContent"></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- =========================================================
+                     VIEW 5: GUIDELINES & SCHEMA
+                     ========================================================= -->
+                <section id="view-guide" class="view-section">
+                    <div class="saas-card">
+                        <div class="saas-card-header">
+                            <div class="card-title-group">
+                                <div class="card-title-icon">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                                </div>
+                                <div>
+                                    <h2 class="card-title">Guidelines, Formats & Database Schema</h2>
+                                    <div class="card-subtitle">Format specifications for seating documents and database structure</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="guide-grid">
+                            <div class="guide-box">
+                                <h4>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:middle"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                    PDF Document Format
+                                </h4>
+                                <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 8px;">The PDF parser extracts data using regex patterns for GTU standard format:</p>
+                                <pre>GOVERNMENT POLYTECHNIC AHMEDABAD
+EXAM SEATING ARRANGEMENT
+
+Subject Code: 41046307
+Date: 12 sept 2026
+Time: 10:30 AM TO 1:00 PM
+
+BLOCK: 1 (SEM4)
+ROOM NO: 1A110
+246171063001
+246171063003
+246171063005</pre>
+                            </div>
+
+                            <div class="guide-box">
+                                <h4>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:middle"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+                                    Excel Spreadsheet Format
+                                </h4>
+                                <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 8px;">Ensure the Excel table contains recognizable column headers:</p>
+                                <pre>Columns parsed:
+- Enrollment / Enr No (12-digit)
+- Subject / Subject Code
+- Block No / Block
+- Room / Room No
+- Semester (or SEM4, SEM6)
+- Date (DD/MM/YYYY)
+- Time (10:30 AM TO 1:00 PM)</pre>
+                            </div>
+
+                            <div class="guide-box">
+                                <h4>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:middle"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+                                    PostgreSQL Database Schema
+                                </h4>
+                                <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 8px;">PostgreSQL students table schema:</p>
+                                <pre>CREATE TABLE students (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    enrollment_number BIGINT UNIQUE,
+    semester INTEGER NOT NULL,
+    branch VARCHAR(50) NOT NULL,
+    college_name VARCHAR(200) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    phone_number VARCHAR(20)
+);</pre>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         CUSTOM CURSOR ELEMENTS (Curzr)
+         ========================================================= -->
+    <div class="curzr-arrow-pointer" hidden>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+        <path class="inner" d="M25,30a5.82,5.82,0,0,1-1.09-.17l-.2-.07-7.36-3.48a.72.72,0,0,0-.35-.08.78.78,0,0,0-.33.07L8.24,29.54a.66.66,0,0,1-.2.06,5.17,5.17,0,0,1-1,.15,3.6,3.6,0,0,1-3.29-5L12.68,4.2a3.59,3.59,0,0,1,6.58,0l9,20.74A3.6,3.6,0,0,1,25,30Z" fill="#F2F5F8" />
+        <path class="outer" d="M16,3A2.59,2.59,0,0,1,18.34,4.6l9,20.74A2.59,2.59,0,0,1,25,29a5.42,5.42,0,0,1-.86-.15l-7.37-3.48a1.84,1.84,0,0,0-.77-.17,1.69,1.69,0,0,0-.73.16l-7.4,3.31a5.89,5.89,0,0,1-.79.12,2.59,2.59,0,0,1-2.37-3.62L13.6,4.6A2.58,2.58,0,0,1,16,3m0-2h0A4.58,4.58,0,0,0,11.76,3.8L2.84,24.33A4.58,4.58,0,0,0,7,30.75a6.08,6.08,0,0,0,1.21-.17,1.87,1.87,0,0,0,.4-.13L16,27.18l7.29,3.44a1.64,1.64,0,0,0,.39.14A6.37,6.37,0,0,0,25,31a4.59,4.59,0,0,0,4.21-6.41l-9-20.75A4.62,4.62,0,0,0,16,1Z" fill="#111920" />
+      </svg>
+    </div>
+
+    <div class="curzr-big-circle" hidden>
+      <div class="circle"></div>
+      <div class="dot"></div>
+    </div>
+
+    <div class="curzr-ring-dot" hidden>
+      <div class="curzr-dot"></div>
+    </div>
+
+    <div class="curzr-circle-and-dot" hidden></div>
+
+    <div class="curzr-glitch-effect" hidden></div>
+
+    <svg class="curzr-motion" hidden>
+      <filter id="motionblur" x="-100%" y="-100%" width="400%" height="400%">
+        <feGaussianBlur class="curzr-motion-blur" stdDeviation="0, 0" />
+      </filter>
+      <circle cx="50%" cy="50%" r="5" fill="#292927" filter="url(#motionblur)" />
+    </svg>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
