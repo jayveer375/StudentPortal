@@ -87,6 +87,41 @@
             <section id="tab-allotment" class="student-view-section active">
                 {% if allocations and allocations | length > 0 %}
 
+                <!-- Allotment Top Toolbar with View Switcher & Fun Download Button -->
+                <div class="allotment-toolbar">
+                    <div class="view-switcher-group" role="tablist" aria-label="Seating arrangement view">
+                        <button type="button" class="view-toggle-btn active" id="btnViewCards" data-view="cards" title="View as Cards">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+                                <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+                                <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+                                <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+                            </svg>
+                            <span>Card View</span>
+                        </button>
+                        <button type="button" class="view-toggle-btn" id="btnViewTable" data-view="table" title="View as Table">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                                <path d="M3 9h18"/>
+                                <path d="M3 15h18"/>
+                                <path d="M9 3v18"/>
+                            </svg>
+                            <span>Table View</span>
+                        </button>
+                    </div>
+
+                    <!-- Fun Download Hall Ticket Button -->
+                    <a href="{{ url_for('student_download_hall_ticket') }}" class="btn-fun-download" id="mainDownloadHallTicketBtn" title="Download Official Examination Hall Ticket (PDF)">
+                        <span class="btn-download-spinner"></span>
+                        <svg class="download-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        <span class="btn-fun-text">Download Hall Ticket (PDF)</span>
+                    </a>
+                </div>
+
                 {% if allocations | length > 1 %}
                 <!-- Multi-Allotment Notice Banner -->
                 <div class="multi-allotment-banner">
@@ -98,93 +133,200 @@
                     </div>
                     <div class="multi-allotment-content">
                         <strong>Multiple Class Allocations ({{ allocations | length }} Classes / Sessions Assigned)</strong>
-                        <p>You have multiple allocated classroom locations. Please review each class schedule, room number, and block assignment carefully below.</p>
+                        <p>You have multiple allocated classroom locations. Switch between Card View and Table View or download your complete Hall Ticket Receipt below.</p>
                     </div>
                 </div>
                 {% endif %}
 
-                <div class="allocations-stack" style="display: flex; flex-direction: column; gap: 24px;">
-                    {% for alloc in allocations %}
-                    <!-- Allocated Hero Card -->
-                    <div class="student-card allotment-hero-card">
-                        <div class="allotment-header-row">
-                            <div class="allotment-title-group">
-                                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px;">
-                                    <span class="allotment-badge-confirmed">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                                        Seating Confirmed
-                                    </span>
-                                    {% if allocations | length > 1 %}
-                                    <span class="allotment-badge-session">Class #{{ loop.index }}</span>
-                                    {% endif %}
-                                    {% if alloc.arrangement_filename %}
-                                    <span class="allotment-badge-file">
-                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                                        {{ alloc.arrangement_filename }}
-                                    </span>
-                                    {% endif %}
+                <!-- =========================================================
+                     1. CARDS VIEW CONTAINER
+                     ========================================================= -->
+                <div id="allotmentCardsView" class="student-cards-view-container active">
+                    <div class="allocations-stack" style="display: flex; flex-direction: column; gap: 24px;">
+                        {% for alloc in allocations %}
+                        <!-- Allocated Hero Card -->
+                        <div class="student-card allotment-hero-card">
+                            <div class="allotment-header-row">
+                                <div class="allotment-title-group">
+                                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px;">
+                                        <span class="allotment-badge-confirmed">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                            Seating Confirmed
+                                        </span>
+                                        {% if allocations | length > 1 %}
+                                        <span class="allotment-badge-session">Class #{{ loop.index }}</span>
+                                        {% endif %}
+                                        {% if alloc.arrangement_filename %}
+                                        <span class="allotment-badge-file">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                            {{ alloc.arrangement_filename }}
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                    <h1 class="allotment-hero-title">{{ alloc.subject or 'Exam Seating Arrangement' }}</h1>
+                                    <p class="allotment-hero-subtitle">Government Polytechnic Ahmedabad &bull; GTU Examination</p>
                                 </div>
-                                <h1 class="allotment-hero-title">{{ alloc.subject or 'Exam Seating Arrangement' }}</h1>
-                                <p class="allotment-hero-subtitle">Government Polytechnic Ahmedabad &bull; GTU Examination</p>
+                                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+                                    <div class="exam-date-pill">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                        <span>{{ alloc.date or 'Scheduled Exam' }}</span>
+                                    </div>
+                                    <a href="{{ url_for('student_download_hall_ticket', allocation_id=alloc.id) }}" class="btn-card-receipt" title="Download official receipt for this exam session">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                                        </svg>
+                                        <span>Get Receipt PDF</span>
+                                    </a>
+                                </div>
                             </div>
-                            <div class="exam-date-pill">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                                <span>{{ alloc.date or 'Scheduled Exam' }}</span>
+
+                            <!-- Highlighted Room & Block Banners -->
+                            <div class="room-block-grid">
+                                <div class="room-highlight-box">
+                                    <div class="highlight-label">Allocated Classroom</div>
+                                    <div class="highlight-value">{{ alloc.room or 'Room TBA' }}</div>
+                                    <div class="highlight-sub">Classroom / Hall Number</div>
+                                </div>
+
+                                <div class="room-highlight-box block-accent">
+                                    <div class="highlight-label">Assigned Block</div>
+                                    <div class="highlight-value">{{ alloc.block or 'Block TBA' }}</div>
+                                    <div class="highlight-sub">Seating Block Division</div>
+                                </div>
+                            </div>
+
+                            <!-- Exam Detail Tiles -->
+                            <div class="allotment-details-grid">
+                                <div class="detail-tile">
+                                    <span class="detail-label">Subject & Code</span>
+                                    <span class="detail-value highlight-text">{{ alloc.subject or 'Subject TBA' }}</span>
+                                </div>
+
+                                <div class="detail-tile">
+                                    <span class="detail-label">Exam Timing</span>
+                                    <span class="detail-value mono-text">{{ alloc.time or '10:30 AM TO 1:00 PM' }}</span>
+                                </div>
+
+                                <div class="detail-tile">
+                                    <span class="detail-label">Semester & Branch</span>
+                                    <span class="detail-value">SEM {{ alloc.semester or student.semester }} &bull; {{ student.branch }}</span>
+                                </div>
+
+                                <div class="detail-tile">
+                                    <span class="detail-label">Student Enrollment</span>
+                                    <span class="detail-value mono-text">{{ student.enrollment_number }}</span>
+                                </div>
+                            </div>
+
+                            <!-- Advisory Instructions -->
+                            <div class="exam-advisory-box">
+                                <div class="advisory-icon">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                                    </svg>
+                                </div>
+                                <div class="advisory-text">
+                                    <strong>Candidate Instructions:</strong>
+                                    <p>Please report to <strong>Room {{ alloc.room }} (Block {{ alloc.block }})</strong> at least 15 minutes before the exam commences. Carry your valid Student ID Card and Hall Ticket. Smartwatches, mobile phones, and non-prescribed notes are strictly prohibited.</p>
+                                </div>
                             </div>
                         </div>
+                        {% endfor %}
+                    </div>
+                </div>
 
-                        <!-- Highlighted Room & Block Banners -->
-                        <div class="room-block-grid">
-                            <div class="room-highlight-box">
-                                <div class="highlight-label">Allocated Classroom</div>
-                                <div class="highlight-value">{{ alloc.room or 'Room TBA' }}</div>
-                                <div class="highlight-sub">Classroom / Hall Number</div>
-                            </div>
-
-                            <div class="room-highlight-box block-accent">
-                                <div class="highlight-label">Assigned Block</div>
-                                <div class="highlight-value">{{ alloc.block or 'Block TBA' }}</div>
-                                <div class="highlight-sub">Seating Block Division</div>
-                            </div>
-                        </div>
-
-                        <!-- Exam Detail Tiles -->
-                        <div class="allotment-details-grid">
-                            <div class="detail-tile">
-                                <span class="detail-label">Subject & Code</span>
-                                <span class="detail-value highlight-text">{{ alloc.subject or 'Subject TBA' }}</span>
-                            </div>
-
-                            <div class="detail-tile">
-                                <span class="detail-label">Exam Timing</span>
-                                <span class="detail-value mono-text">{{ alloc.time or '10:30 AM TO 1:00 PM' }}</span>
-                            </div>
-
-                            <div class="detail-tile">
-                                <span class="detail-label">Semester & Branch</span>
-                                <span class="detail-value">SEM {{ alloc.semester or student.semester }} &bull; {{ student.branch }}</span>
-                            </div>
-
-                            <div class="detail-tile">
-                                <span class="detail-label">Student Enrollment</span>
-                                <span class="detail-value mono-text">{{ student.enrollment_number }}</span>
-                            </div>
-                        </div>
-
-                        <!-- Advisory Instructions -->
-                        <div class="exam-advisory-box">
-                            <div class="advisory-icon">
-                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                <!-- =========================================================
+                     2. TABLE VIEW CONTAINER
+                     ========================================================= -->
+                <div id="allotmentTableView" class="student-table-view-container">
+                    <div class="student-allotment-table-card">
+                        <div class="student-table-header-bar">
+                            <div class="student-table-header-title">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/>
                                 </svg>
+                                <span>Exam Seating Allotment Schedule</span>
+                                <span class="student-table-count-badge">{{ allocations | length }} Session{% if allocations | length > 1 %}s{% endif %}</span>
                             </div>
-                            <div class="advisory-text">
-                                <strong>Candidate Instructions:</strong>
-                                <p>Please report to <strong>Room {{ alloc.room }} (Block {{ alloc.block }})</strong> at least 15 minutes before the exam commences. Carry your valid Student ID Card and Hall Ticket. Smartwatches, mobile phones, and non-prescribed notes are strictly prohibited.</p>
+                            <div>
+                                <a href="{{ url_for('student_download_hall_ticket') }}" class="btn-table-receipt" title="Download Complete Hall Ticket PDF">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                                    </svg>
+                                    <span>Download All (PDF)</span>
+                                </a>
                             </div>
+                        </div>
+
+                        <div class="student-table-responsive">
+                            <table class="student-allotment-table" id="studentAllotmentTable">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 45px;">#</th>
+                                        <th>Subject / Paper Code</th>
+                                        <th>Exam Date</th>
+                                        <th>Exam Timing</th>
+                                        <th>Allocated Room</th>
+                                        <th>Assigned Block</th>
+                                        <th>Semester & Branch</th>
+                                        <th>Status</th>
+                                        <th style="text-align: right;">Hall Ticket</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for alloc in allocations %}
+                                    <tr>
+                                        <td style="font-weight: 700; color: #64748B;">{{ loop.index }}</td>
+                                        <td>
+                                            <div class="subject-code-table">{{ alloc.subject or 'Subject TBA' }}</div>
+                                            {% if alloc.arrangement_filename %}
+                                            <div style="font-size: 11.5px; color: #64748B; margin-top: 2px;">{{ alloc.arrangement_filename }}</div>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div style="font-weight: 600; color: #1E293B;">{{ alloc.date or 'Scheduled Exam' }}</div>
+                                        </td>
+                                        <td>
+                                            <span class="timing-badge-table">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                                {{ alloc.time or '10:30 AM TO 1:00 PM' }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="room-badge-table">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="9" y1="22" x2="9" y2="22.01"/><line x1="15" y1="22" x2="15" y2="22.01"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>
+                                                {{ alloc.room or 'Room TBA' }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="block-badge-table">
+                                                Block {{ alloc.block or '1' }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div style="font-size: 13.5px; font-weight: 600; color: #1E293B;">SEM {{ alloc.semester or student.semester }}</div>
+                                            <div style="font-size: 12px; color: #64748B;">{{ student.branch }}</div>
+                                        </td>
+                                        <td>
+                                            <span class="badge-status-pill badge-allocated">
+                                                <span class="status-dot green"></span>
+                                                Confirmed
+                                            </span>
+                                        </td>
+                                        <td style="text-align: right;">
+                                            <a href="{{ url_for('student_download_hall_ticket', allocation_id=alloc.id) }}" class="btn-table-receipt" title="Download Hall Ticket Receipt for {{ alloc.subject }}">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                                                </svg>
+                                                <span>Receipt PDF</span>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
-                    {% endfor %}
                 </div>
 
                 {% else %}
@@ -421,6 +563,57 @@
                     switchStudentTab(targetTab);
                 });
             });
+
+            // Seating Allotment View Switcher (Cards vs Table)
+            const btnViewCards = document.getElementById('btnViewCards');
+            const btnViewTable = document.getElementById('btnViewTable');
+            const allotmentCardsView = document.getElementById('allotmentCardsView');
+            const allotmentTableView = document.getElementById('allotmentTableView');
+
+            function setAllotmentDisplayMode(mode) {
+                if (!allotmentCardsView || !allotmentTableView) return;
+                const isTable = mode === 'table';
+                if (btnViewCards) btnViewCards.classList.toggle('active', !isTable);
+                if (btnViewTable) btnViewTable.classList.toggle('active', isTable);
+                allotmentCardsView.classList.toggle('active', !isTable);
+                allotmentTableView.classList.toggle('active', isTable);
+                try {
+                    localStorage.setItem('student_allotment_view', isTable ? 'table' : 'cards');
+                } catch(e) {}
+            }
+
+            if (btnViewCards) {
+                btnViewCards.addEventListener('click', () => setAllotmentDisplayMode('cards'));
+            }
+            if (btnViewTable) {
+                btnViewTable.addEventListener('click', () => setAllotmentDisplayMode('table'));
+            }
+
+            // Restore saved view preference
+            try {
+                const savedView = localStorage.getItem('student_allotment_view');
+                if (savedView === 'table') {
+                    setAllotmentDisplayMode('table');
+                }
+            } catch(e) {}
+
+            // Fun Download Hall Ticket Button Animation & Toast Feedback
+            const mainDownloadBtn = document.getElementById('mainDownloadHallTicketBtn');
+            if (mainDownloadBtn) {
+                mainDownloadBtn.addEventListener('click', function(e) {
+                    const btnText = this.querySelector('.btn-fun-text');
+                    const originalText = btnText ? btnText.textContent : 'Download Hall Ticket (PDF)';
+                    this.classList.add('is-loading');
+                    if (btnText) btnText.textContent = 'Generating Hall Ticket...';
+
+                    showAlert('🎉 Generating your official GTU Hall Ticket & Seating Receipt! Download will begin shortly.', 'success');
+
+                    setTimeout(() => {
+                        this.classList.remove('is-loading');
+                        if (btnText) btnText.textContent = originalText;
+                    }, 3000);
+                });
+            }
 
             // Read URL hash on load
             const hash = window.location.hash.replace('#', '');

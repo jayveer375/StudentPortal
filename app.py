@@ -7,13 +7,14 @@ from functools import wraps
 from datetime import timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from flask import Flask, render_template, request, jsonify, Response, session, redirect, url_for, flash
+from flask import Flask, render_template, request, jsonify, Response, session, redirect, url_for, flash, send_file
 from werkzeug.utils import secure_filename
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import PyPDF2
 import openpyxl
 from dotenv import load_dotenv
+from hall_ticket import generate_hall_ticket_pdf
 import json
 import uuid
 from selenium import webdriver
@@ -1258,6 +1259,109 @@ def delete_arrangement(arrangement_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # =========================================================
+# DOWNLOAD ARRANGEMENT FILE
+# =========================================================
+@app.route('/api/arrangements/<int:arrangement_id>/preview')
+@admin_required
+def preview_arrangement_file(arrangement_id):
+    """Reads the uploaded Excel/PDF and returns all rows as JSON for live browser preview."""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('SELECT filename FROM seating_arrangements WHERE id = %s;', (arrangement_id,))
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        if not row:
+            return jsonify({'error': 'File not found'}), 404
+
+        filename = row[0]
+
+        # Try to find the actual file — secure_filename() replaces spaces with underscores
+        # so we check both the original name and the sanitized version
+        upload_folder = app.config['UPLOAD_FOLDER']
+        candidates = [
+            filename,
+            filename.replace(' ', '_'),
+            filename.replace(' ', '-'),
+            secure_filename(filename),
+        ]
+        filepath = None
+        for candidate in candidates:
+            p = os.path.join(upload_folder, candidate)
+            if os.path.exists(p):
+                filepath = p
+                filename = candidate   # use the real on-disk name
+                break
+
+        if not filepath:
+            return jsonify({'error': 'File no longer exists on server'}), 404
+
+        ext = filename.lower().rsplit('.', 1)[-1]
+
+        if ext in ('xlsx', 'xls'):
+            wb = openpyxl.load_workbook(filepath, read_only=True, data_only=True)
+            sheets = []
+            for sheet_name in wb.sheetnames:
+                ws = wb[sheet_name]
+                rows = []
+                for row in ws.iter_rows(values_only=True):
+                    rows.append([str(c) if c is not None else '' for c in row])
+                if any(any(c for c in r) for r in rows):
+                    sheets.append({'name': sheet_name, 'rows': rows})
+            wb.close()
+            return jsonify({'success': True, 'filename': filename, 'type': 'excel', 'sheets': sheets})
+
+        return jsonify({'error': 'Preview only supported for Excel files (.xlsx/.xls)'}), 415
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/arrangements/<int:arrangement_id>/download')
+@admin_required
+def download_arrangement_file(arrangement_id):
+    """Serves the original uploaded seating file (Excel/PDF) for the admin to open."""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('SELECT filename FROM seating_arrangements WHERE id = %s;', (arrangement_id,))
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        if not row:
+            return jsonify({'error': 'File not found'}), 404
+
+        filename = row[0]
+        upload_folder = app.config['UPLOAD_FOLDER']
+        candidates = [
+            filename,
+            filename.replace(' ', '_'),
+            filename.replace(' ', '-'),
+            secure_filename(filename),
+        ]
+        filepath = None
+        actual_filename = filename
+        for candidate in candidates:
+            p = os.path.join(upload_folder, candidate)
+            if os.path.exists(p):
+                filepath = p
+                actual_filename = candidate
+                break
+
+        if not filepath:
+            return jsonify({'error': 'File no longer exists on server'}), 404
+
+        return send_file(
+            filepath,
+            as_attachment=False,
+            download_name=actual_filename
+        )
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# =========================================================
 # STUDENT PORTAL & PROFILE CONTROLLER
 # =========================================================
 @app.route('/student')
@@ -1395,6 +1499,57 @@ def student_change_password():
     except Exception as e:
         print(f"Error changing student password: {e}")
         return jsonify({'success': False, 'error': 'Database error while changing password.'}), 500
+    finally:
+        if conn:
+            conn.close()
+
+@app.route('/student/download-hall-ticket')
+@student_required
+def student_download_hall_ticket():
+    """Generates and downloads the student's dynamic PDF Examination Hall Ticket / Allotment Receipt."""
+    student_id = session.get('student_id')
+    allocation_id = request.args.get('allocation_id', type=int)
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+
+        cur.execute("SELECT * FROM students WHERE id = %s", (student_id,))
+        student = cur.fetchone()
+
+        if not student:
+            cur.close()
+            return jsonify({'error': 'Student not found'}), 404
+
+        cur.execute("""
+            SELECT sa.*, arr.filename as arrangement_filename, arr.title as arrangement_title, arr.allocated_at
+            FROM seating_allocations sa
+            JOIN seating_arrangements arr ON sa.arrangement_id = arr.id
+            WHERE sa.enrollment_number = %s 
+              AND sa.is_allocated = TRUE 
+              AND arr.is_allocated = TRUE
+            ORDER BY sa.date ASC, sa.time ASC, sa.id ASC;
+        """, (student['enrollment_number'],))
+        allocations = cur.fetchall()
+        cur.close()
+
+        if not allocations:
+            flash('No active allocated seating records found to generate hall ticket.', 'error')
+            return redirect(url_for('student_portal'))
+
+        pdf_buffer = generate_hall_ticket_pdf(student, allocations, specific_alloc_id=allocation_id)
+        
+        filename = f"Hall_Ticket_{student['enrollment_number']}.pdf"
+        return send_file(
+            pdf_buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        print(f"Error generating hall ticket PDF: {e}")
+        return jsonify({'error': f'Failed to generate hall ticket: {str(e)}'}), 500
     finally:
         if conn:
             conn.close()

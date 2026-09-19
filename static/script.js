@@ -932,7 +932,13 @@ function renderArrangementsTable(arrangements) {
                 <td>
                     <div style="font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                        <span>${escapeHtml(arr.filename)}</span>
+                        <a href="#" title="Click to preview file"
+                           onclick="event.preventDefault(); openExcelPreview(${arr.id}, '${escapeHtml(arr.filename).replace(/'/g, "\\'")}');"
+                           style="color: #2563EB; text-decoration: none; font-weight: 700; transition: all 0.2s ease; cursor: pointer;"
+                           onmouseover="this.style.textDecoration='underline'; this.style.color='#1D4ED8';"
+                           onmouseout="this.style.textDecoration='none'; this.style.color='#2563EB';">
+                            ${escapeHtml(arr.filename)}
+                        </a>
                     </div>
                     ${arr.allocated_at ? `<div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 2px;">Allocated: ${escapeHtml(arr.allocated_at)}</div>` : ''}
                 </td>
@@ -1192,3 +1198,164 @@ class ArrowPointer {
     el.style.display = 'none'
   }, { once: true })
 })()
+
+
+// =========================================================
+// EXCEL LIVE PREVIEW MODAL
+// =========================================================
+
+let _previewSheets = [];   // cache all sheets from last fetch
+let _activeSheetIdx = 0;   // currently displayed sheet index
+
+function openExcelPreview(arrangementId, filename) {
+    const overlay   = document.getElementById('excelPreviewOverlay');
+    const loading   = document.getElementById('excelModalLoading');
+    const errorBox  = document.getElementById('excelModalError');
+    const errorMsg  = document.getElementById('excelModalErrorMsg');
+    const body      = document.getElementById('excelModalBody');
+    const tabsBar   = document.getElementById('excelSheetTabs');
+    const fileLabel = document.getElementById('excelModalFilename');
+    const metaLabel = document.getElementById('excelModalMeta');
+    const rowCount  = document.getElementById('excelModalRowCount');
+    const dlBtn     = document.getElementById('excelModalDownloadBtn');
+
+    // Reset UI
+    fileLabel.textContent = filename;
+    metaLabel.textContent = 'Excel Spreadsheet • Loading…';
+    loading.style.display  = 'flex';
+    errorBox.style.display = 'none';
+    body.style.display     = 'none';
+    tabsBar.innerHTML      = '';
+    rowCount.textContent   = '';
+    dlBtn.href = `/api/arrangements/${arrangementId}/download`;
+    dlBtn.setAttribute('download', filename);
+
+    // Open overlay
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+
+    // Fetch preview data
+    fetch(`/api/arrangements/${arrangementId}/preview`)
+        .then(r => r.json())
+        .then(data => {
+            loading.style.display = 'none';
+
+            if (!data.success || !data.sheets || data.sheets.length === 0) {
+                errorMsg.textContent = data.error || 'No data found in file.';
+                errorBox.style.display = 'flex';
+                return;
+            }
+
+            _previewSheets  = data.sheets;
+            _activeSheetIdx = 0;
+            metaLabel.textContent = `Excel Spreadsheet • ${data.sheets.length} sheet${data.sheets.length > 1 ? 's' : ''}`;
+
+            // Build sheet tabs
+            data.sheets.forEach((sheet, idx) => {
+                const tab = document.createElement('button');
+                tab.className = 'excel-sheet-tab' + (idx === 0 ? ' active' : '');
+                tab.textContent = sheet.name;
+                tab.onclick = () => switchSheet(idx);
+                tabsBar.appendChild(tab);
+            });
+
+            body.style.display = 'block';
+            renderSheet(0);
+        })
+        .catch(err => {
+            loading.style.display  = 'none';
+            errorMsg.textContent   = 'Network error: ' + err.message;
+            errorBox.style.display = 'flex';
+        });
+}
+
+function switchSheet(idx) {
+    _activeSheetIdx = idx;
+
+    // Update tab active state
+    document.querySelectorAll('.excel-sheet-tab').forEach((tab, i) => {
+        tab.classList.toggle('active', i === idx);
+    });
+
+    renderSheet(idx);
+}
+
+function renderSheet(idx) {
+    const wrap     = document.getElementById('excelTableWrap');
+    const rowCount = document.getElementById('excelModalRowCount');
+    const sheet    = _previewSheets[idx];
+
+    if (!sheet || !sheet.rows || sheet.rows.length === 0) {
+        wrap.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted);font-weight:600;">Sheet is empty</div>';
+        rowCount.textContent = '0 rows';
+        return;
+    }
+
+    const allRows  = sheet.rows;
+
+    // Build table HTML — use ALL rows including first as header
+    // Find first non-empty row as actual header
+    let headerIdx = 0;
+    for (let i = 0; i < allRows.length; i++) {
+        if (allRows[i].some(c => c !== '')) { headerIdx = i; break; }
+    }
+    const header   = allRows[headerIdx];
+    const dataRows = allRows.slice(headerIdx + 1);
+
+    // Count non-empty data rows
+    const nonEmpty = dataRows.filter(r => r.some(c => c !== ''));
+    rowCount.textContent = `${nonEmpty.length} rows × ${header.length} columns`;
+
+    let html = '<table class="excel-preview-table"><thead><tr>';
+    html += '<th class="row-num">#</th>';
+    header.forEach(cell => {
+        html += `<th>${escapeHtml(cell)}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+
+    let visibleRow = 0;
+    let prevWasEmpty = false;
+
+    dataRows.forEach((row) => {
+        const isEmpty = !row.some(c => c !== '');
+
+        if (isEmpty) {
+            // Only insert ONE separator row between groups, skip consecutive empties
+            if (!prevWasEmpty) {
+                html += `<tr class="excel-separator-row"><td class="row-num"></td>${header.map(() => '<td></td>').join('')}</tr>`;
+            }
+            prevWasEmpty = true;
+            return;
+        }
+
+        prevWasEmpty = false;
+        visibleRow++;
+        html += `<tr><td class="row-num">${visibleRow}</td>`;
+        row.forEach(cell => {
+            html += `<td>${escapeHtml(cell)}</td>`;
+        });
+        html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+}
+
+function closeExcelPreview(event) {
+    // Close only if clicking backdrop or close button (not inside modal)
+    if (event && event.target !== document.getElementById('excelPreviewOverlay')) return;
+    _forceCloseExcelPreview();
+}
+
+function _forceCloseExcelPreview() {
+    const overlay = document.getElementById('excelPreviewOverlay');
+    overlay.classList.remove('open');
+    document.body.style.overflow = '';
+    _previewSheets  = [];
+    _activeSheetIdx = 0;
+}
+
+// Close on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') _forceCloseExcelPreview();
+});
